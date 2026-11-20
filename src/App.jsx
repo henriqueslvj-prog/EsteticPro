@@ -309,6 +309,49 @@ function AuthShell({ theme, onToggleTheme, children }) {
   );
 }
 
+const TURNSTILE_SITE_KEY = import.meta.env.VITE_TURNSTILE_SITE_KEY || "";
+
+// CAPTCHA (Cloudflare Turnstile). Só aparece se VITE_TURNSTILE_SITE_KEY estiver definida.
+function TurnstileBox({ theme, onToken }) {
+  const host = useRef(null);
+  useEffect(() => {
+    if (!TURNSTILE_SITE_KEY) return undefined;
+    let widgetId = null;
+    let cancelled = false;
+    onToken("");
+    const render = () => {
+      if (cancelled || !host.current || !window.turnstile) return;
+      widgetId = window.turnstile.render(host.current, {
+        sitekey: TURNSTILE_SITE_KEY,
+        theme: theme === "dark" ? "dark" : "light",
+        language: "pt-br",
+        callback: (token) => onToken(token),
+        "expired-callback": () => onToken(""),
+        "error-callback": () => onToken(""),
+      });
+    };
+    if (window.turnstile) render();
+    else {
+      let script = document.getElementById("cf-turnstile-script");
+      if (!script) {
+        script = document.createElement("script");
+        script.id = "cf-turnstile-script";
+        script.src = "https://challenges.cloudflare.com/turnstile/v0/api.js?render=explicit";
+        script.async = true;
+        script.defer = true;
+        document.head.appendChild(script);
+      }
+      script.addEventListener("load", render);
+    }
+    return () => {
+      cancelled = true;
+      try { if (widgetId !== null && window.turnstile) window.turnstile.remove(widgetId); } catch { /* ignore */ }
+    };
+  }, [theme]);
+  if (!TURNSTILE_SITE_KEY) return null;
+  return <div className="auth-captcha" ref={host} />;
+}
+
 function AuthScreen({ theme, onToggleTheme }) {
   const [mode, setMode] = useState("login"); // login | trial | sent
   const [name, setName] = useState("");
@@ -318,8 +361,14 @@ function AuthScreen({ theme, onToggleTheme }) {
   const [showPassword, setShowPassword] = useState(false);
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState(null);
+  const [captcha, setCaptcha] = useState("");
+  const [captchaNonce, setCaptchaNonce] = useState(0);
+  const captchaOptions = () => (TURNSTILE_SITE_KEY ? { captchaToken: captcha } : {});
+  const captchaMissing = () => TURNSTILE_SITE_KEY && !captcha;
+  // O token do CAPTCHA vale uma única vez: depois de cada tentativa o widget é recriado.
+  const resetCaptcha = () => { setCaptcha(""); setCaptchaNonce((n) => n + 1); };
 
-  function switchMode(next) { setMode(next); setMessage(null); }
+  function switchMode(next) { setMode(next); setMessage(null); resetCaptcha(); }
 
   async function handleSubmit(e) {
     e.preventDefault();
@@ -327,12 +376,14 @@ function AuthScreen({ theme, onToggleTheme }) {
     if (!isSupabaseConfigured) return setMessage({ type: "error", text: "O Supabase ainda não foi configurado." });
     if (!email.trim()) return setMessage({ type: "error", text: "Informe seu e-mail." });
     if (!password) return setMessage({ type: "error", text: "Informe sua senha." });
+    if (captchaMissing()) return setMessage({ type: "error", text: "Confirme que você não é um robô para continuar." });
     setBusy(true);
     try {
-      const { error } = await supabase.auth.signInWithPassword({ email: email.trim(), password });
+      const { error } = await supabase.auth.signInWithPassword({ email: email.trim(), password, options: captchaOptions() });
       if (error) throw error;
     } catch (error) {
       setMessage({ type: "error", text: friendlyAuthError(error.message) });
+      resetCaptcha();
     } finally { setBusy(false); }
   }
 
@@ -344,18 +395,20 @@ function AuthScreen({ theme, onToggleTheme }) {
     if (!email.trim()) return setMessage({ type: "error", text: "Informe seu e-mail." });
     if (password.length < 8) return setMessage({ type: "error", text: "A senha precisa ter pelo menos 8 caracteres." });
     if (!accepted) return setMessage({ type: "error", text: "Aceite os Termos de Uso e a Política de Privacidade para continuar." });
+    if (captchaMissing()) return setMessage({ type: "error", text: "Confirme que você não é um robô para continuar." });
     setBusy(true);
     try {
       const { data, error } = await supabase.auth.signUp({
         email: email.trim(),
         password,
-        options: { data: { full_name: name.trim(), signup_source: "trial" }, emailRedirectTo: `${window.location.origin}/` },
+        options: { data: { full_name: name.trim(), signup_source: "trial" }, emailRedirectTo: `${window.location.origin}/`, ...captchaOptions() },
       });
       if (error) throw error;
       // Sem sessão = o projeto exige confirmação de e-mail; com sessão, o app entra sozinho.
       if (!data.session) setMode("sent");
     } catch (error) {
       setMessage({ type: "error", text: friendlyAuthError(error.message) });
+      resetCaptcha();
     } finally { setBusy(false); }
   }
 
@@ -363,9 +416,11 @@ function AuthScreen({ theme, onToggleTheme }) {
     setMessage(null);
     if (!email.trim()) return setMessage({ type: "error", text: "Digite seu e-mail antes de recuperar a senha." });
     if (!isSupabaseConfigured) return setMessage({ type: "error", text: "O Supabase ainda não foi configurado." });
+    if (captchaMissing()) return setMessage({ type: "error", text: "Confirme que você não é um robô para recuperar a senha." });
     setBusy(true);
-    const { error } = await supabase.auth.resetPasswordForEmail(email.trim(), { redirectTo: `${window.location.origin}/` });
+    const { error } = await supabase.auth.resetPasswordForEmail(email.trim(), { redirectTo: `${window.location.origin}/`, ...captchaOptions() });
     setBusy(false);
+    resetCaptcha();
     setMessage(error ? { type: "error", text: friendlyAuthError(error.message) } : { type: "success", text: "Se este e-mail estiver cadastrado, você receberá as instruções de recuperação." });
   }
 
@@ -392,6 +447,7 @@ function AuthScreen({ theme, onToggleTheme }) {
           <AuthField icon={UserRound} label="Seu nome"><input value={name} onChange={(e) => setName(e.target.value)} placeholder="Como devemos te chamar?" type="text" autoComplete="name" required /></AuthField>
           <AuthField icon={Mail} label="E-mail"><input value={email} onChange={(e) => setEmail(e.target.value)} placeholder="seu@email.com" type="email" autoComplete="email" required /></AuthField>
           <AuthField icon={LockKeyhole} label="Senha" trailing={eye}><input value={password} onChange={(e) => setPassword(e.target.value)} placeholder="Mínimo de 8 caracteres" type={showPassword ? "text" : "password"} autoComplete="new-password" minLength={8} required /></AuthField>
+          <TurnstileBox key={`t${captchaNonce}`} theme={theme} onToken={setCaptcha} />
           <label className="auth-check"><input type="checkbox" checked={accepted} onChange={(e) => setAccepted(e.target.checked)} /><span>Li e aceito os <a href="/termos.html" target="_blank" rel="noopener">Termos de Uso</a> e a <a href="/privacidade.html" target="_blank" rel="noopener">Política de Privacidade</a>.</span></label>
           <button className="primary-button auth-submit" disabled={busy}>{busy ? <span className="button-spinner" /> : <>Começar teste grátis <ArrowRight size={18} /></>}</button>
         </form>
@@ -406,6 +462,7 @@ function AuthScreen({ theme, onToggleTheme }) {
         <form onSubmit={handleSubmit} className="auth-form">
           <AuthField icon={Mail} label="E-mail"><input value={email} onChange={(e) => setEmail(e.target.value)} placeholder="seu@email.com" type="email" autoComplete="email" required /></AuthField>
           <AuthField icon={LockKeyhole} label="Senha" trailing={eye}><input value={password} onChange={(e) => setPassword(e.target.value)} placeholder="Sua senha" type={showPassword ? "text" : "password"} autoComplete="current-password" required /></AuthField>
+          <TurnstileBox key={`l${captchaNonce}`} theme={theme} onToken={setCaptcha} />
           <div className="auth-row"><button type="button" className="auth-link" onClick={handleForgotPassword} disabled={busy}>Esqueceu sua senha?</button></div>
           <button className="primary-button auth-submit" disabled={busy}>{busy ? <span className="button-spinner" /> : <>Entrar <ArrowRight size={18} /></>}</button>
         </form>
@@ -428,6 +485,7 @@ function friendlyAuthError(message = "") {
   if (m.includes("user already registered") || m.includes("already been registered")) return "Este e-mail já possui uma conta. Entre com sua senha ou use \"Esqueceu sua senha?\".";
   if (m.includes("signups not allowed") || m.includes("signup is disabled")) return "O cadastro de novas contas está desativado no momento.";
   if (m.includes("password should be at least")) return "A senha precisa ter pelo menos 6 caracteres.";
+  if (m.includes("captcha")) return "Não foi possível validar o CAPTCHA. Tente novamente.";
   if (m.includes("rate limit")) return "Muitas tentativas. Aguarde um pouco e tente novamente.";
   return message || "Não foi possível concluir a operação.";
 }

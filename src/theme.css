@@ -594,3 +594,5 @@ html[data-theme="dark"] .modal-backdrop { background: rgb(0 0 0 / .66); }
   color: var(--gold-text); background: rgb(var(--gold-rgb) / .12); border: 1px solid rgb(var(--gold-rgb) / .4); }
 .trial-pill.urgent { color: var(--danger-text); background: rgb(var(--danger-rgb) / .1); border-color: rgb(var(--danger-rgb) / .4); }
 @media (max-width: 820px) { .trial-pill { height: 34px; padding: 0 10px; font-size: 12px; } .trial-pill svg { display: none; } }
+
+.auth-captcha { display: flex; justify-content: center; min-height: 65px; margin: 2px 0; }
