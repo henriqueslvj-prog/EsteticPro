@@ -16,3 +16,9 @@
 ## Limites conhecidos
 - Arquivos no *Storage* (fotos de evolução etc.) não são cobertos pela policy automática; as policies dos buckets continuam as atuais.
 - A contagem de dias exibida usa o relógio do aparelho; o bloqueio de verdade usa o relógio do banco.
+
+## CAPTCHA (Cloudflare Turnstile)
+1. Cloudflare → Turnstile → *Add widget* (hostname `esteticproapp.vercel.app`, modo Managed). Copie a **Site Key** e a **Secret Key**.
+2. Vercel → *Environment Variables*: `VITE_TURNSTILE_SITE_KEY` = Site Key. Faça um novo deploy.
+3. Só depois: Supabase → *Authentication → Attack Protection* → ativar CAPTCHA, provedor Cloudflare Turnstile, colar a **Secret Key**.
+Sem a variável, o widget não aparece e o app funciona normalmente (use assim enquanto o CAPTCHA estiver desligado no Supabase).
