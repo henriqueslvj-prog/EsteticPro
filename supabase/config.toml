@@ -1,0 +1,14 @@
+[functions.google-drive-auth]
+verify_jwt = false
+
+[functions.google-drive-upload]
+verify_jwt = false
+
+[functions.google-drive-media]
+verify_jwt = false
+
+[functions.reminder-push]
+verify_jwt = false
+
+[functions.manage-access]
+verify_jwt = false
