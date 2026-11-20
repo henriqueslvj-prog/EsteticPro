@@ -49,41 +49,41 @@ html[data-theme="light"] {
   --r-sm: 10px; --r-md: 14px; --r-lg: 20px;
 }
 
-/* ---------- Tokens · tema escuro ---------- */
+/* ---------- Tokens · tema escuro (grafite neutro; o verde aparece só como acento) ---------- */
 html[data-theme="dark"] {
   color-scheme: dark;
-  --bg: #04180F;
-  --solid-0: #04180F;
-  --solid-1: #082C1E;
-  --solid-2: #0F3D2A;
-  --surface-rgb: 8 44 30;
+  --bg: #0E1110;
+  --solid-0: #0E1110;
+  --solid-1: #161A18;
+  --solid-2: #1E2321;
+  --surface-rgb: 24 28 26;
   --surface-k: 1;
-  --fg-rgb: 185 201 191;
+  --fg-rgb: 214 220 216;
   --accent: #5DAA7B;
   --accent-strong: #7FC79A;
   --accent-rgb: 93 170 123;
-  --accent-text: #7FC79A;
+  --accent-text: #86C79E;
   --gold-rgb: 191 165 116;
   --gold-text: #D0BC8F;
   --danger-rgb: 224 120 112;
   --danger-text: #EE9A92;
-  --tx-1: #F5F0E3;
-  --tx-2: #C9D6CD;
-  --tx-3: #9DB0A4;
-  --tx-4: #7E9286;
+  --tx-1: #EFEBE2;
+  --tx-2: #C7CBC5;
+  --tx-3: #9BA09A;
+  --tx-4: #7D827C;
   --shadow-rgb: 0 0 0;
   --shadow-k: 1;
-  --line: rgb(185 201 191 / .13);
-  --line-strong: rgb(185 201 191 / .24);
-  --card: #082C1E;
-  --card-2: #0B3524;
-  --btn-grad: linear-gradient(135deg, #5BA779, #2F7652);
-  --ring: 0 0 0 3px rgb(var(--accent-rgb) / .3);
+  --line: rgb(214 220 216 / .10);
+  --line-strong: rgb(214 220 216 / .20);
+  --card: #151918;
+  --card-2: #1A1F1D;
+  --btn-grad: linear-gradient(135deg, #4F9A6F, #34805A);
+  --ring: 0 0 0 3px rgb(var(--accent-rgb) / .28);
   --sym-1: #E6D8B0; --sym-2: #C4AA78; --sym-3: #9B8250;
-  --lockup-a: #F5F0E3; --lockup-b: #5DAA7B;
+  --lockup-a: #EFEBE2; --lockup-b: #6FB68B;
   --elev-1: 0 1px 0 rgb(255 255 255 / .03) inset, 0 12px 30px -16px rgb(0 0 0 / .7);
-  --elev-2: 0 30px 80px -20px rgb(0 0 0 / .8), 0 0 0 1px rgb(185 201 191 / .1);
-  --topbar-bg: rgb(4 24 15 / .78);
+  --elev-2: 0 30px 80px -20px rgb(0 0 0 / .8), 0 0 0 1px rgb(214 220 216 / .08);
+  --topbar-bg: rgb(14 17 16 / .82);
 }
 
 /* Contextos sempre escuros (sidebar, painel do login, cartão de destaque) */
@@ -538,3 +538,59 @@ html[data-theme="dark"] .modal-backdrop { background: rgb(0 0 0 / .6); }
 
 .modal-card select { background-color: rgb(var(--surface-rgb) / 1); color: var(--tx-1); border: 1px solid rgb(var(--fg-rgb) / .15); border-radius: 10px; }
 html[data-theme="dark"] .modal-card select { background-color: var(--solid-2); }
+
+
+/* ===== Modo escuro: superfícies "sempre escuras" também ficam grafite (no claro continuam verde-floresta) ===== */
+html[data-theme="dark"] .auth-art {
+  background:
+    radial-gradient(900px 600px at 85% 0%, rgb(93 170 123 / .14), transparent 60%),
+    radial-gradient(700px 520px at 0% 100%, rgb(191 165 116 / .10), transparent 60%),
+    linear-gradient(160deg, #1B201E 0%, #131715 52%, #0C0F0E 100%);
+}
+html[data-theme="dark"] .auth-ring { border-color: rgb(191 165 116 / .14); }
+html[data-theme="dark"] .auth-ring.r2 { border-color: rgb(191 165 116 / .09); }
+html[data-theme="dark"] .auth-ring.r3 { border-color: rgb(214 220 216 / .05); }
+html[data-theme="dark"] .sidebar {
+  background: linear-gradient(180deg, #151918 0%, #121614 100%);
+  border-right: 1px solid rgb(214 220 216 / .08);
+}
+html[data-theme="dark"] .sidebar-brand,
+html[data-theme="dark"] .sidebar-foot { border-color: rgb(214 220 216 / .09); }
+html[data-theme="dark"] .nav-item.active { background: rgb(214 220 216 / .08); }
+html[data-theme="dark"] .dx-hero {
+  background: radial-gradient(520px 260px at 100% 0%, rgb(93 170 123 / .16), transparent 65%), linear-gradient(150deg, #1D2321 0%, #161A18 58%, #111413 100%);
+  border-color: rgb(191 165 116 / .22);
+  box-shadow: 0 26px 50px -28px rgb(0 0 0 / .8), inset 0 1px 0 rgb(255 255 255 / .05);
+}
+html[data-theme="dark"] .avatar,
+html[data-theme="dark"] .dx-avatar { background: linear-gradient(145deg, #3A7A58, #1F4733); }
+html[data-theme="dark"] .sidebar-overlay { background: rgb(0 0 0 / .62); }
+html[data-theme="dark"] .cmdk-overlay { background: rgb(0 0 0 / .6); }
+html[data-theme="dark"] .modal-backdrop { background: rgb(0 0 0 / .66); }
+
+/* ===== Teste grátis (login) ===== */
+.auth-trial {
+  width: 100%; display: flex; align-items: center; gap: 14px; padding: 14px 16px; border-radius: 14px; cursor: pointer; text-align: left;
+  border: 1px solid rgb(var(--gold-rgb) / .55); background: rgb(var(--gold-rgb) / .08); color: var(--tx-1); font-family: inherit;
+  transition: background .18s, border-color .18s, transform .18s;
+}
+.auth-trial:hover { background: rgb(var(--gold-rgb) / .15); border-color: rgb(var(--gold-rgb) / .85); transform: translateY(-1px); }
+.auth-trial > svg:first-child { color: var(--gold-text); flex: none; }
+.auth-trial > svg:last-child { color: var(--tx-3); flex: none; }
+.auth-trial span { flex: 1; display: grid; gap: 2px; }
+.auth-trial strong { font-size: 15px; font-weight: 600; }
+.auth-trial small { font-size: 12.5px; color: var(--tx-3); }
+.auth-divider { margin: 22px 0 16px; }
+.auth-check { display: flex; gap: 10px; align-items: flex-start; font-size: 13px; line-height: 1.5; color: var(--tx-3); cursor: pointer; }
+.auth-check input { margin-top: 3px; width: 17px; height: 17px; accent-color: var(--accent); flex: none; }
+.auth-check a { color: var(--accent-text); font-weight: 600; text-decoration: underline; text-underline-offset: 2px; }
+.auth-switch { margin: 18px 0 0; text-align: center; font-size: 14px; color: var(--tx-3); }
+.auth-switch .auth-link { display: inline; padding: 0; }
+.auth-head p strong { color: var(--tx-1); font-weight: 600; word-break: break-all; }
+.auth-note + .auth-submit { margin-top: 18px; }
+
+/* Selo do teste grátis no topo do sistema */
+.trial-pill { display: inline-flex; align-items: center; gap: 7px; height: 38px; padding: 0 14px; border-radius: 999px; font-size: 13px; font-weight: 600; white-space: nowrap;
+  color: var(--gold-text); background: rgb(var(--gold-rgb) / .12); border: 1px solid rgb(var(--gold-rgb) / .4); }
+.trial-pill.urgent { color: var(--danger-text); background: rgb(var(--danger-rgb) / .1); border-color: rgb(var(--danger-rgb) / .4); }
+@media (max-width: 820px) { .trial-pill { height: 34px; padding: 0 10px; font-size: 12px; } .trial-pill svg { display: none; } }

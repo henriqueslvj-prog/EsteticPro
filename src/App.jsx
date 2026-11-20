@@ -105,6 +105,10 @@ function App() {
   const [loadingSession, setLoadingSession] = useState(true);
   const [accessStatus, setAccessStatus] = useState("checking");
   const [accessRole, setAccessRole] = useState("professional");
+  const [accessPlan, setAccessPlan] = useState("full");
+  const [trialEndsAt, setTrialEndsAt] = useState(null);
+  const [nowTick, setNowTick] = useState(() => Date.now());
+  useEffect(() => { const t = window.setInterval(() => setNowTick(Date.now()), 60000); return () => window.clearInterval(t); }, []);
   const [theme, setThemeState] = useState(readStoredTheme);
   const themeTouched = useRef(false);
   const setTheme = useCallback((value) => setThemeState(value === "dark" ? "dark" : "light"), []);
@@ -155,24 +159,26 @@ function App() {
       }
       // Fail closed: a signed-in user must have an approved access record.
       // Allow an invited professional to activate access only after confirming their email.
-      let { data: access, error } = await supabase
-        .from("user_access")
-        .select("status,role")
-        .eq("user_id", nextSession.user.id)
-        .maybeSingle();
+      const readAccess = async () => {
+        // Colunas de plano/teste existem após rodar supabase/trial_v30.sql; sem elas, cai no formato antigo.
+        let r = await supabase.from("user_access").select("status,role,plan,trial_ends_at").eq("user_id", nextSession.user.id).maybeSingle();
+        if (r.error) r = await supabase.from("user_access").select("status,role").eq("user_id", nextSession.user.id).maybeSingle();
+        return r;
+      };
+      let { data: access, error } = await readAccess();
       if (!error && access?.status === "pending" && nextSession.user.email_confirmed_at) {
         const inviteToken = new URLSearchParams(window.location.search).get("invite_token");
         const { data: accepted } = await supabase.functions.invoke("manage-access", {
           body: { action: "accept_invite", ...(inviteToken ? { token: inviteToken } : {}) },
         });
         if (accepted?.status === "approved") {
-          const refreshed = await supabase.from("user_access").select("status,role").eq("user_id", nextSession.user.id).maybeSingle();
+          const refreshed = await readAccess();
           access = refreshed.data;
           error = refreshed.error;
         }
       }
       if (error || !access) { setAccessStatus("unconfigured"); setAccessRole("professional"); }
-      else { setAccessStatus(access.status); setAccessRole(access.role || "professional"); }
+      else { setAccessStatus(access.status); setAccessRole(access.role || "professional"); setAccessPlan(access.plan || "full"); setTrialEndsAt(access.trial_ends_at || null); }
       setLoadingSession(false);
     }
     supabase.auth.getSession().then(({ data }) => applySession(data.session));
@@ -185,18 +191,25 @@ function App() {
 
   if (loadingSession) return <SplashScreen />;
   if (!session) return <AuthScreen theme={theme} onToggleTheme={toggleLocalTheme} />;
+  const trialExpired = accessStatus === "approved" && accessPlan === "trial" && trialEndsAt && new Date(trialEndsAt).getTime() <= nowTick;
+  if (trialExpired) {
+    return <AuthShell theme={theme} onToggleTheme={toggleLocalTheme}>
+      <div className="auth-head"><span className="auth-eyebrow">Teste encerrado</span><h1>Seu teste grátis terminou</h1><p>Os 7 dias de teste do EsteticPro chegaram ao fim. Seus dados continuam guardados. Para continuar usando o sistema, fale com a equipe EsteticPro e libere seu acesso completo.</p></div>
+      <button className="primary-button auth-submit" onClick={() => supabase.auth.signOut()}>Sair da conta <LogOut size={18} /></button>
+    </AuthShell>;
+  }
   if (accessStatus !== "approved") {
     const text = accessStatus === "blocked"
       ? "O acesso a esta conta foi bloqueado. Entre em contato com o administrador."
       : accessStatus === "pending"
-        ? "Sua conta ainda não foi autorizada. O acesso será liberado após aprovação do administrador."
+        ? "Sua conta ainda não foi liberada. Assim que o acesso for aprovado você poderá entrar."
         : "Não foi possível confirmar a autorização desta conta. O acesso permanece bloqueado por segurança.";
     return <AuthShell theme={theme} onToggleTheme={toggleLocalTheme}>
       <div className="auth-head"><h2>Acesso restrito</h2><p>{text}</p></div>
       <button className="auth-submit" onClick={() => supabase.auth.signOut()}>Sair da conta <LogOut size={18} /></button>
     </AuthShell>;
   }
-  return <Dashboard session={session} isAdmin={accessRole === "admin"} theme={theme} setTheme={setTheme} themeTouched={themeTouched} />;
+  return <Dashboard session={session} trialEndsAt={accessPlan === "trial" ? trialEndsAt : null} nowTick={nowTick} theme={theme} setTheme={setTheme} themeTouched={themeTouched} />;
 }
 
 const THEME_KEY = "esteticpro-theme";
@@ -283,7 +296,7 @@ function AuthShell({ theme, onToggleTheme, children }) {
             <li><span className="ico"><CircleDollarSign size={18} /></span>Financeiro e estoque ligados ao atendimento</li>
           </ul>
         </div>
-        <div className="auth-art-foot">© {new Date().getFullYear()} EsteticPro · Acesso privado</div>
+        <div className="auth-art-foot">© {new Date().getFullYear()} EsteticPro</div>
       </aside>
       <section className="auth-panel">
         <ThemeToggle theme={theme} onToggle={onToggleTheme} className="auth-theme" />
@@ -297,11 +310,16 @@ function AuthShell({ theme, onToggleTheme, children }) {
 }
 
 function AuthScreen({ theme, onToggleTheme }) {
+  const [mode, setMode] = useState("login"); // login | trial | sent
+  const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [accepted, setAccepted] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState(null);
+
+  function switchMode(next) { setMode(next); setMessage(null); }
 
   async function handleSubmit(e) {
     e.preventDefault();
@@ -318,6 +336,29 @@ function AuthScreen({ theme, onToggleTheme }) {
     } finally { setBusy(false); }
   }
 
+  async function handleTrial(e) {
+    e.preventDefault();
+    setMessage(null);
+    if (!isSupabaseConfigured) return setMessage({ type: "error", text: "O Supabase ainda não foi configurado." });
+    if (name.trim().length < 2) return setMessage({ type: "error", text: "Informe seu nome." });
+    if (!email.trim()) return setMessage({ type: "error", text: "Informe seu e-mail." });
+    if (password.length < 8) return setMessage({ type: "error", text: "A senha precisa ter pelo menos 8 caracteres." });
+    if (!accepted) return setMessage({ type: "error", text: "Aceite os Termos de Uso e a Política de Privacidade para continuar." });
+    setBusy(true);
+    try {
+      const { data, error } = await supabase.auth.signUp({
+        email: email.trim(),
+        password,
+        options: { data: { full_name: name.trim(), signup_source: "trial" }, emailRedirectTo: `${window.location.origin}/` },
+      });
+      if (error) throw error;
+      // Sem sessão = o projeto exige confirmação de e-mail; com sessão, o app entra sozinho.
+      if (!data.session) setMode("sent");
+    } catch (error) {
+      setMessage({ type: "error", text: friendlyAuthError(error.message) });
+    } finally { setBusy(false); }
+  }
+
   async function handleForgotPassword() {
     setMessage(null);
     if (!email.trim()) return setMessage({ type: "error", text: "Digite seu e-mail antes de recuperar a senha." });
@@ -328,24 +369,49 @@ function AuthScreen({ theme, onToggleTheme }) {
     setMessage(error ? { type: "error", text: friendlyAuthError(error.message) } : { type: "success", text: "Se este e-mail estiver cadastrado, você receberá as instruções de recuperação." });
   }
 
+  const eye = <button type="button" className="ghost-btn" aria-label={showPassword ? "Ocultar senha" : "Mostrar senha"} onClick={() => setShowPassword((v) => !v)}>{showPassword ? <EyeOff size={18} /> : <Eye size={18} />}</button>;
+
   return (
     <AuthShell theme={theme} onToggleTheme={onToggleTheme}>
-      <header className="auth-head">
-        <span className="auth-eyebrow">Acesso privado</span>
-        <h1>Bem-vindo de volta</h1>
-        <p>Entre com o e-mail associado ao seu convite.</p>
-      </header>
-      {message && <div className={`auth-msg ${message.type}`} role="status">{message.text}</div>}
-      <form onSubmit={handleSubmit} className="auth-form">
-        <AuthField icon={Mail} label="E-mail"><input value={email} onChange={(e) => setEmail(e.target.value)} placeholder="seu@email.com" type="email" autoComplete="email" required /></AuthField>
-        <AuthField icon={LockKeyhole} label="Senha" trailing={<button type="button" className="ghost-btn" aria-label={showPassword ? "Ocultar senha" : "Mostrar senha"} onClick={() => setShowPassword((v) => !v)}>{showPassword ? <EyeOff size={18} /> : <Eye size={18} />}</button>}>
-          <input value={password} onChange={(e) => setPassword(e.target.value)} placeholder="Sua senha" type={showPassword ? "text" : "password"} autoComplete="current-password" required />
-        </AuthField>
-        <div className="auth-row"><button type="button" className="auth-link" onClick={handleForgotPassword} disabled={busy}>Esqueceu sua senha?</button></div>
-        <button className="primary-button auth-submit" disabled={busy}>{busy ? <span className="button-spinner" /> : <>Entrar <ArrowRight size={18} /></>}</button>
-      </form>
-      <div className="auth-divider"><span>Somente por convite</span></div>
-      <p className="auth-note"><ShieldCheck size={18} /><span>Novas contas são criadas exclusivamente por convite do administrador. Entre com o e-mail para o qual o convite foi enviado.</span></p>
+      {mode === "sent" ? <>
+        <header className="auth-head">
+          <span className="auth-eyebrow">Quase lá</span>
+          <h1>Confirme seu e-mail</h1>
+          <p>Enviamos um link de confirmação para <strong>{email.trim()}</strong>. Abra o e-mail e clique no link para ativar seus 7 dias de teste grátis.</p>
+        </header>
+        <p className="auth-note"><Mail size={18} /><span>Não encontrou? Verifique a caixa de spam. O prazo de 7 dias começa na criação da conta.</span></p>
+        <button className="primary-button auth-submit" onClick={() => switchMode("login")}>Ir para o login <ArrowRight size={18} /></button>
+      </> : mode === "trial" ? <>
+        <header className="auth-head">
+          <span className="auth-eyebrow">Teste grátis · 7 dias</span>
+          <h1>Crie sua conta</h1>
+          <p>Acesso completo ao EsteticPro por 7 dias, sem cartão de crédito.</p>
+        </header>
+        {message && <div className={`auth-msg ${message.type}`} role="status">{message.text}</div>}
+        <form onSubmit={handleTrial} className="auth-form">
+          <AuthField icon={UserRound} label="Seu nome"><input value={name} onChange={(e) => setName(e.target.value)} placeholder="Como devemos te chamar?" type="text" autoComplete="name" required /></AuthField>
+          <AuthField icon={Mail} label="E-mail"><input value={email} onChange={(e) => setEmail(e.target.value)} placeholder="seu@email.com" type="email" autoComplete="email" required /></AuthField>
+          <AuthField icon={LockKeyhole} label="Senha" trailing={eye}><input value={password} onChange={(e) => setPassword(e.target.value)} placeholder="Mínimo de 8 caracteres" type={showPassword ? "text" : "password"} autoComplete="new-password" minLength={8} required /></AuthField>
+          <label className="auth-check"><input type="checkbox" checked={accepted} onChange={(e) => setAccepted(e.target.checked)} /><span>Li e aceito os <a href="/termos.html" target="_blank" rel="noopener">Termos de Uso</a> e a <a href="/privacidade.html" target="_blank" rel="noopener">Política de Privacidade</a>.</span></label>
+          <button className="primary-button auth-submit" disabled={busy}>{busy ? <span className="button-spinner" /> : <>Começar teste grátis <ArrowRight size={18} /></>}</button>
+        </form>
+        <p className="auth-switch">Já tem conta? <button type="button" className="auth-link" onClick={() => switchMode("login")}>Entrar</button></p>
+      </> : <>
+        <header className="auth-head">
+          <span className="auth-eyebrow">Acesso à sua conta</span>
+          <h1>Bem-vindo de volta</h1>
+          <p>Entre com seu e-mail e senha para acessar o EsteticPro.</p>
+        </header>
+        {message && <div className={`auth-msg ${message.type}`} role="status">{message.text}</div>}
+        <form onSubmit={handleSubmit} className="auth-form">
+          <AuthField icon={Mail} label="E-mail"><input value={email} onChange={(e) => setEmail(e.target.value)} placeholder="seu@email.com" type="email" autoComplete="email" required /></AuthField>
+          <AuthField icon={LockKeyhole} label="Senha" trailing={eye}><input value={password} onChange={(e) => setPassword(e.target.value)} placeholder="Sua senha" type={showPassword ? "text" : "password"} autoComplete="current-password" required /></AuthField>
+          <div className="auth-row"><button type="button" className="auth-link" onClick={handleForgotPassword} disabled={busy}>Esqueceu sua senha?</button></div>
+          <button className="primary-button auth-submit" disabled={busy}>{busy ? <span className="button-spinner" /> : <>Entrar <ArrowRight size={18} /></>}</button>
+        </form>
+        <div className="auth-divider"><span>ou</span></div>
+        <button type="button" className="auth-trial" onClick={() => switchMode("trial")}><Sparkles size={18} /><span><strong>Teste grátis por 7 dias</strong><small>Acesso completo, sem cartão de crédito</small></span><ArrowRight size={17} /></button>
+      </>}
       <footer className="auth-legal"><a href="/privacidade.html">Política de Privacidade</a><i>·</i><a href="/termos.html">Termos de Uso</a><i>·</i><a href="/google-drive-termos.html">Google Drive</a></footer>
     </AuthShell>
   );
@@ -359,7 +425,8 @@ function friendlyAuthError(message = "") {
   const m = message.toLowerCase();
   if (m.includes("invalid login credentials")) return "E-mail ou senha incorretos.";
   if (m.includes("email not confirmed")) return "Confirme seu e-mail antes de entrar.";
-  if (m.includes("user already registered")) return "Este e-mail já possui uma conta.";
+  if (m.includes("user already registered") || m.includes("already been registered")) return "Este e-mail já possui uma conta. Entre com sua senha ou use \"Esqueceu sua senha?\".";
+  if (m.includes("signups not allowed") || m.includes("signup is disabled")) return "O cadastro de novas contas está desativado no momento.";
   if (m.includes("password should be at least")) return "A senha precisa ter pelo menos 6 caracteres.";
   if (m.includes("rate limit")) return "Muitas tentativas. Aguarde um pouco e tente novamente.";
   return message || "Não foi possível concluir a operação.";
@@ -369,11 +436,11 @@ const navGroups = [
   { label: "Principal", ids: ["dashboard", "agenda", "lembretes"] },
   { label: "Relacionamento", ids: ["clientes", "evolucao"] },
   { label: "Gestão", ids: ["procedimentos", "pacotes", "estoque", "financeiro", "relatorios"] },
-  { label: "Sistema", ids: ["configuracoes", "access"] },
+  { label: "Sistema", ids: ["configuracoes"] },
 ];
 
-function Dashboard({ session, isAdmin = false, theme, setTheme, themeTouched }) {
-  const visibleNavItems = isAdmin ? [...navItems, { id: "access", label: "Acessos", icon: ShieldCheck }] : navItems;
+function Dashboard({ session, trialEndsAt = null, nowTick = Date.now(), theme, setTheme, themeTouched }) {
+  const visibleNavItems = navItems;
   const [active, setActive] = useState("dashboard");
   const [mobileMenu, setMobileMenu] = useState(false);
   const [profile, setProfile] = useState(null);
@@ -507,7 +574,6 @@ function Dashboard({ session, isAdmin = false, theme, setTheme, themeTouched }) 
   else if (active === "pacotes") content = <PackagesModule userId={uid} onNavigate={go} />;
   else if (active === "relatorios") content = <ReportsModule userId={uid} onNavigate={go} />;
   else if (active === "configuracoes") content = <SettingsModule userId={uid} profile={profile} theme={theme} onProfileOpen={() => setProfileOpen(true)} onThemeChange={(value) => { if (themeTouched) themeTouched.current = true; setTheme(value === "dark" ? "dark" : "light"); }} />;
-  else if (active === "access" && isAdmin) content = <AdminAccessModule />;
   else content = <ComingSoon title={navItems.find((x) => x.id === active)?.label || "Módulo"} onBack={() => go("dashboard")} />;
 
   return <div className={`app-shell theme-${theme}`}>
@@ -530,6 +596,7 @@ function Dashboard({ session, isAdmin = false, theme, setTheme, themeTouched }) 
         <button className="mobile-menu" onClick={() => setMobileMenu(true)} aria-label="Abrir menu"><Menu size={22} /></button>
         <button className="search-trigger" onClick={() => setPaletteOpen(true)} aria-label="Buscar ou ir para" aria-haspopup="dialog"><Search size={18} /><span>Buscar clientes, agenda, estoque ou ir para…</span><kbd className="kbd">{isMac ? "⌘ K" : "Ctrl K"}</kbd></button>
         <div className="top-actions">
+          {trialEndsAt ? <TrialPill endsAt={trialEndsAt} now={nowTick} /> : null}
           <ThemeToggle theme={theme} onToggle={toggleTheme} />
           <button className="icon-btn notification" onClick={() => go("lembretes")} title="Abrir lembretes" aria-label="Abrir lembretes"><Bell size={19} /><i className="dot" /></button>
           <button className="profile-chip" onClick={() => setProfileOpen(true)} title="Abrir meu perfil"><div className="avatar">{profile?.avatar_url ? <ProfileAvatar path={profile.avatar_url} name={displayName} /> : initials(displayName)}</div><div className="who"><strong>{displayName}</strong><span>{professionalTitle}</span></div><ChevronRight size={16} /></button>
@@ -680,71 +747,11 @@ function CommandPalette({ userId, pages, actions, onClose, onPick }) {
   );
 }
 
-function AdminAccessModule() {
-  const [email, setEmail] = useState("");
-  const [invites, setInvites] = useState([]);
-  const [users, setUsers] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [busy, setBusy] = useState(false);
-  const [message, setMessage] = useState(null);
-  async function callAdmin(action, extra = {}) {
-    const { data, error } = await supabase.functions.invoke("manage-access", { body: { action, ...extra } });
-    if (error) {
-      // Preserve the actual SDK error for diagnosis instead of hiding every failure
-      // behind the same generic CORS/deployment message.
-      let detail = error.message || "Falha na chamada da função.";
-      const causeMessage = error.cause?.message || error.context?.message;
-      if (causeMessage && causeMessage !== detail) detail += ` (${causeMessage})`;
-      try {
-        // HTTP errors can carry a Response; network/fetch errors usually carry
-        // a regular Error. Read response bodies only when a cloneable Response exists.
-        const context = error.context;
-        if (context && typeof context.clone === "function") {
-          const body = await context.clone().text();
-          if (body) detail += ` — ${body.slice(0, 500)}`;
-        }
-      } catch (_) {}
-      console.error("EstetiPro manage-access — diagnóstico completo:", {
-        name: error.name, message: error.message, cause: error.cause,
-        context: error.context, error,
-      });
-      throw new Error(detail);
-    }
-    if (data?.error) throw new Error(data.error);
-    if (data?.success === false) throw new Error(data.error || "A operação não foi concluída.");
-    return data;
-  }
-  async function refresh() {
-    setLoading(true);
-    try {
-      const d = await callAdmin("list");
-      setInvites(d.invites || []);
-      // Current Edge Function returns `accesses`; support `users` for older deployments.
-      setUsers(d.accesses || d.users || []);
-      setMessage(null);
-    } catch (e) {
-      setMessage({type:"error",text:e.message || "Não foi possível carregar os acessos."});
-    } finally { setLoading(false); }
-  }
-  useEffect(() => { refresh(); }, []);
-  async function invite(e) { e.preventDefault(); setBusy(true); setMessage(null); try { await callAdmin("invite",{email}); setEmail(""); setMessage({type:"success",text:"Convite solicitado. O envio depende da configuração de e-mail do Supabase."}); await refresh(); } catch(e) { setMessage({type:"error",text:e.message}); } finally { setBusy(false); } }
-  async function changeAccess(userId,status) {
-    const nextStatus = status === "blocked" ? "approved" : "revoked";
-    if (!window.confirm(nextStatus === "blocked" ? "Bloquear o acesso desta profissional?" : "Liberar o acesso desta profissional?")) return;
-    setBusy(true);
-    try {
-      await callAdmin("set_status", { user_id: userId, status: nextStatus });
-      await refresh();
-    } catch(e) { setMessage({type:"error",text:e.message}); }
-    finally { setBusy(false); }
-  }
-  async function revoke(id) { if(!window.confirm("Revogar este convite pendente?")) return; setBusy(true); try { await callAdmin("revoke",{invite_id:id}); await refresh(); } catch(e) { setMessage({type:"error",text:e.message}); } finally { setBusy(false); } }
-  return <section className="module-page access-admin-page"><div className="module-heading"><div><span className="eyebrow">ADMINISTRAÇÃO</span><h1>Controle de acesso</h1><p>Convide profissionais e gerencie a autorização da plataforma.</p></div><button className="secondary-button" onClick={refresh} disabled={loading}>Atualizar</button></div>
-    {message && <div className={message.type==="error"?"form-error":"auth-message success"}>{message.text}</div>}
-    <div className="settings-card"><div className="settings-card-heading"><ShieldCheck size={21}/><div><h2>Convidar profissional</h2><p>Convite por e-mail, válido por 7 dias.</p></div></div><form className="access-invite-form" onSubmit={invite}><label className="form-input"><span>E-mail profissional</span><input type="email" required value={email} onChange={e=>setEmail(e.target.value)} placeholder="profissional@exemplo.com" autoComplete="off"/></label><button className="primary-button" disabled={busy||!email.trim()}>{busy?"Enviando…":"Enviar convite"}</button></form></div>
-    <div className="settings-card"><div className="settings-card-heading"><UsersRound size={21}/><div><h2>Contas cadastradas</h2><p>Gerencie o acesso das profissionais.</p></div></div>{loading?"Carregando…":<div className="access-list">{users.map(u=><div className="access-row" key={u.user_id}><div className="access-row-main"><strong>{u.email}</strong><span>{u.role==="admin"?"Administrador":"Profissional"} · {u.status==="approved"?"Aprovada":(u.status==="blocked"||u.status==="revoked")?"Bloqueada":"Pendente"}</span></div>{u.role!=="admin"&&<button className="secondary-button" disabled={busy} onClick={()=>changeAccess(u.user_id,(u.status==="blocked"||u.status==="revoked")?"approved":"blocked")}>{(u.status==="blocked"||u.status==="revoked")?"Liberar":"Bloquear"}</button>}</div>)}</div>}</div>
-    <div className="settings-card"><div className="settings-card-heading"><Mail size={21}/><div><h2>Convites enviados</h2><p>Convites pendentes podem ser revogados.</p></div></div>{loading?"Carregando…":invites.length===0?"Nenhum convite registrado.":<div className="access-list">{invites.map(i=><div className="access-row" key={i.id}><div className="access-row-main"><strong>{i.email}</strong><span>{i.status} · expira {new Date(i.expires_at).toLocaleDateString("pt-BR")}</span></div>{i.status==="pending"&&<button className="secondary-button" disabled={busy} onClick={()=>revoke(i.id)}>Revogar</button>}</div>)}</div>}</div>
-  </section>;
+function TrialPill({ endsAt, now }) {
+  const ms = new Date(endsAt).getTime() - now;
+  const days = Math.max(0, Math.ceil(ms / 86400000));
+  const label = days <= 1 ? (ms > 0 ? "Último dia de teste" : "Teste encerrado") : `Teste grátis · ${days} dias`;
+  return <span className={`trial-pill ${days <= 2 ? "urgent" : ""}`} title="Seu período de teste grátis"><Sparkles size={14} />{label}</span>;
 }
 
 function ProfileAvatar({ path, name, large = false }) {
