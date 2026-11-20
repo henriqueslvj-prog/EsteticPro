@@ -596,3 +596,104 @@ html[data-theme="dark"] .modal-backdrop { background: rgb(0 0 0 / .66); }
 @media (max-width: 820px) { .trial-pill { height: 34px; padding: 0 10px; font-size: 12px; } .trial-pill svg { display: none; } }
 
 .auth-captcha { display: flex; justify-content: center; min-height: 65px; margin: 2px 0; }
+
+/* ==========================================================================
+   Formulários e janelas (Form Kit) — um único padrão para todos os cadastros
+   ========================================================================== */
+:root, html[data-theme="light"] { --fld: rgb(14 26 20 / .035); --fld-hover: rgb(14 26 20 / .06); }
+html[data-theme="dark"] { --fld: rgb(214 220 216 / .05); --fld-hover: rgb(214 220 216 / .08); }
+
+.modal-card { border-radius: 22px; padding: 28px 30px 0; background: var(--solid-1); border: 1px solid var(--line-strong); box-shadow: var(--elev-2); animation: kit-pop .2s ease-out; scrollbar-width: thin; }
+@keyframes kit-pop { from { opacity: 0; transform: translateY(10px) scale(.985); } }
+.modal-header { padding-bottom: 18px; margin-bottom: 22px; border-bottom: 1px solid var(--line); }
+.modal-header > div > span, .modal-header .eyebrow { display: block; font-size: 11.5px; font-weight: 600; letter-spacing: .16em; text-transform: uppercase; color: var(--accent-text); }
+.modal-header h2 { margin: 6px 0 0; font-size: 36px; line-height: 1.05; letter-spacing: -.01em; }
+.modal-header > button, .modal-header .icon-action { width: 38px; height: 38px; border-radius: 12px; border: 1px solid var(--line-strong); background: transparent; color: var(--tx-3); display: grid; place-items: center; cursor: pointer; transition: .15s; }
+.modal-header > button:hover, .modal-header .icon-action:hover { color: var(--tx-1); border-color: var(--tx-3); background: var(--fld); }
+.modal-card form, .modal-card .client-form { display: grid; gap: 18px; }
+
+.modal-card .form-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px; }
+.modal-card .form-grid > .full, .modal-card .form-grid > .span-2 { grid-column: 1 / -1; }
+.modal-card .form-field, .modal-card label.form-input, .modal-card .textarea-field { display: grid; gap: 7px; align-content: start; min-width: 0; }
+.modal-card .form-field > span, .modal-card label.form-input > span, .modal-card .textarea-field > span { font-size: 13px; font-weight: 600; color: var(--tx-2); letter-spacing: .01em; }
+
+.modal-card :is(input, select, textarea):not([type="checkbox"]):not([type="radio"]):not([type="file"]):not([type="range"]) {
+  width: 100%; min-height: 46px; padding: 0 14px; border-radius: 12px; border: 1px solid var(--line-strong);
+  background-color: var(--fld); color: var(--tx-1); font: 400 14.5px/1.4 var(--font-ui); box-sizing: border-box;
+  transition: border-color .15s, box-shadow .15s, background-color .15s;
+}
+.modal-card :is(input, select, textarea):not([type="checkbox"]):not([type="radio"]):not([type="file"]):not([type="range"]):hover { background-color: var(--fld-hover); }
+.modal-card :is(input, select, textarea):focus { outline: none; border-color: rgb(var(--accent-rgb) / .8); box-shadow: var(--ring); background-color: var(--fld); }
+.modal-card textarea { padding: 12px 14px; min-height: 96px; line-height: 1.55; resize: vertical; }
+.modal-card ::placeholder { color: var(--tx-4); opacity: 1; }
+.modal-card select { appearance: none; -webkit-appearance: none; padding-right: 40px; cursor: pointer;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%23889188' stroke-width='2.2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E");
+  background-repeat: no-repeat; background-position: right 14px center; }
+.modal-card select option { background: var(--solid-1); color: var(--tx-1); }
+.modal-card input[type="date"], .modal-card input[type="time"] { cursor: pointer; }
+.modal-card input[type="checkbox"], .modal-card input[type="radio"] { width: 18px; height: 18px; accent-color: var(--accent); flex: none; cursor: pointer; }
+.modal-card label:has(> input[type="checkbox"]) { display: flex; align-items: center; gap: 10px; font-size: 14px; color: var(--tx-2); cursor: pointer; }
+
+/* Fotos de evolução */
+.modal-card .photo-upload-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 14px; }
+.modal-card .photo-upload-block { display: grid; gap: 12px; align-content: start; padding: 14px; border: 1px solid var(--line); border-radius: 16px; background: var(--card-2); min-width: 0; }
+.modal-card .photo-upload-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 10px; color: var(--tx-3); }
+.modal-card .photo-upload-head strong { display: block; font-size: 14px; color: var(--tx-1); }
+.modal-card .photo-upload-head span { display: block; margin-top: 2px; font-size: 12.5px; color: var(--tx-3); }
+.modal-card .photo-dropzone { position: relative; display: grid; place-items: center; align-content: center; gap: 3px; min-height: 132px; padding: 14px; text-align: center; cursor: pointer; border: 1.5px dashed var(--line-strong); border-radius: 14px; background: var(--fld); color: var(--tx-3); transition: .15s; }
+.modal-card .photo-dropzone:hover { border-color: rgb(var(--accent-rgb) / .7); background: rgb(var(--accent-rgb) / .08); color: var(--accent-text); }
+.modal-card .photo-dropzone strong { font-size: 14px; color: var(--tx-1); }
+.modal-card .photo-dropzone small { font-size: 12px; color: var(--tx-3); }
+.modal-card .photo-dropzone input { position: absolute; inset: 0; opacity: 0; cursor: pointer; width: 100%; min-height: 0; }
+.modal-card .picked-files { display: grid; gap: 6px; }
+.modal-card .picked-files > div { display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 7px 10px; border-radius: 10px; background: var(--fld); font-size: 12.5px; color: var(--tx-2); }
+.modal-card .picked-files span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.modal-card .drive-warning, .modal-card .form-info { margin-bottom: 18px; border-radius: 14px; }
+
+/* Rodapé de ações fixo, sempre visível */
+.modal-card .modal-actions { position: sticky; bottom: 0; z-index: 2; display: flex; justify-content: flex-end; gap: 10px; margin: 6px -30px 0; padding: 16px 30px 20px; background: var(--solid-1); border-top: 1px solid var(--line); }
+.modal-card .secondary-button { min-height: 46px; padding: 0 20px; border-radius: 12px; font-weight: 600; background: transparent; border: 1px solid var(--line-strong); color: var(--tx-2); }
+.modal-card .secondary-button:hover { background: var(--fld); color: var(--tx-1); }
+.modal-card .modal-actions .primary-button { min-height: 46px; border-radius: 12px; padding: 0 22px; }
+
+@media (max-width: 820px) {
+  .modal-card .photo-upload-grid { grid-template-columns: 1fr; }
+}
+@media (max-width: 560px) {
+  .modal-card { padding: 20px 18px 0; border-radius: 22px 22px 14px 14px; }
+  .modal-card .form-grid { grid-template-columns: 1fr; }
+  .modal-header h2 { font-size: 30px; }
+  .modal-card .modal-actions { margin: 6px -18px 0; padding: 14px 18px max(16px, env(safe-area-inset-bottom, 0px)); flex-direction: column-reverse; }
+  .modal-card .modal-actions button { width: 100%; }
+}
+.modal-card textarea, .modal-card textarea.form-input { height: auto; min-height: 96px; }
+.modal-card label.form-input, .modal-card label.form-field { height: auto; }
+.modal-card input.form-input, .modal-card select.form-input { height: auto; min-height: 46px; }
+
+/* ---------- Ficha de anamnese personalizada ---------- */
+.anam-tpl{border:1px solid var(--line, rgb(var(--fg-rgb) / .12));border-radius:14px;padding:20px;margin-bottom:18px;background:rgb(var(--fg-rgb) / .025)}
+.anam-tpl-head{display:flex;gap:14px;align-items:flex-start;margin-bottom:16px}
+.anam-tpl-head h3{margin:0 0 3px;font-size:16px;color:var(--tx-1)}
+.anam-tpl-head p{margin:0;font-size:13px;line-height:1.5;color:var(--tx-3)}
+.anam-tpl-ico{width:40px;height:40px;border-radius:11px;display:grid;place-items:center;flex:none;background:rgb(var(--accent-rgb) / .12);color:var(--accent-text)}
+.anam-tpl-options{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.anam-tpl-opt{display:flex;flex-direction:column;gap:8px;align-items:flex-start;padding:16px;border:1px solid rgb(var(--fg-rgb) / .12);border-radius:12px;font-size:13px;color:var(--tx-3);line-height:1.5}
+.anam-tpl-opt strong{color:var(--tx-1);font-size:14px}
+.anam-tpl-opt.on{border-color:rgb(var(--accent-rgb) / .6);background:rgb(var(--accent-rgb) / .07)}
+.anam-tpl-opt em{font-style:normal;font-size:12px;font-weight:600;color:var(--accent-text);background:rgb(var(--accent-rgb) / .14);padding:3px 9px;border-radius:99px;margin-top:auto}
+.anam-tpl-actions{display:flex;flex-wrap:wrap;gap:8px}
+.anam-body{display:grid;gap:18px}
+.anam-bar{display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap;font-size:13px;color:var(--tx-3)}
+.anam-bar>div{display:flex;gap:8px;flex-wrap:wrap}
+.anam-viewer{border:1px solid rgb(var(--fg-rgb) / .12);border-radius:12px;overflow:hidden;background:#fff}
+.anam-viewer iframe{width:100%;height:60vh;border:0;display:block}
+.anam-check{display:flex;gap:10px;align-items:flex-start;font-size:14px;color:var(--tx-2);line-height:1.45;cursor:pointer}
+.anam-check input{margin-top:2px;accent-color:var(--accent-text)}
+.anam-radio{display:flex;flex-wrap:wrap;gap:8px 18px}
+.anam-radio label{display:flex;gap:7px;align-items:center;font-size:14px;color:var(--tx-2);cursor:pointer}
+.anam-sign{display:grid;gap:12px;padding-top:14px;border-top:1px solid rgb(var(--fg-rgb) / .1)}
+.anam-history{display:grid;gap:8px;font-size:13px;color:var(--tx-3)}
+.anam-history strong{color:var(--tx-1)}
+.anam-history>div{display:flex;justify-content:space-between;align-items:center;gap:10px;padding:10px 12px;border:1px solid rgb(var(--fg-rgb) / .1);border-radius:10px}
+.anam-history>div>div{display:flex;gap:6px}
+@media(max-width:640px){.anam-tpl-options{grid-template-columns:1fr}.anam-viewer iframe{height:50vh}}

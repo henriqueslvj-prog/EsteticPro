@@ -52,7 +52,7 @@ const GOOGLE_CLIENT_ID = Deno.env.get("GOOGLE_CLIENT_ID") ?? "";
 const GOOGLE_CLIENT_SECRET = Deno.env.get("GOOGLE_CLIENT_SECRET") ?? "";
 const GOOGLE_REDIRECT_URI = Deno.env.get("GOOGLE_REDIRECT_URI") ?? "";
 
-const FRONTEND_URL = "https://estetipro.vercel.app";
+const FRONTEND_URL = (Deno.env.get("APP_ORIGIN") || "https://esteticpro.vercel.app").replace(/\/+$/, "");
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": FRONTEND_URL,

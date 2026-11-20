@@ -1,5 +1,5 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
-const APP_ORIGIN = "https://estetipro.vercel.app";
+const APP_ORIGIN = "https://esteticpro.vercel.app";
 const ADMIN_EMAIL = "henriqueslvj@gmail.com";
 const INVITE_TTL_MS = 7 * 24 * 60 * 60 * 1000;
 

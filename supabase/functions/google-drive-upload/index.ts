@@ -109,6 +109,68 @@ async function renameDriveFile(accessToken: string, fileId: string, name: string
   return data;
 }
 
+/**
+ * Pasta identificada por uma propriedade do app (appProperties), e não só pelo nome.
+ * Assim a pasta da cliente continua sendo a mesma mesmo que o nome dela mude,
+ * e o nome pode ser exatamente o nome real, sem códigos.
+ */
+async function getOrCreateTaggedFolder(
+  accessToken: string,
+  name: string,
+  parentId: string,
+  propKey: string,
+  propValue: string,
+) {
+  const url = new URL("https://www.googleapis.com/drive/v3/files");
+  url.searchParams.set(
+    "q",
+    [
+      `appProperties has { key='${q(propKey)}' and value='${q(propValue)}' }`,
+      "mimeType = 'application/vnd.google-apps.folder'",
+      "trashed = false",
+      `'${parentId}' in parents`,
+    ].join(" and "),
+  );
+  url.searchParams.set("pageSize", "5");
+  url.searchParams.set("spaces", "drive");
+  url.searchParams.set("fields", "files(id,name,mimeType,parents)");
+  const response = await driveRequest(accessToken, url.toString());
+  const raw = await response.text();
+  let data: any = {};
+  try { data = raw ? JSON.parse(raw) : {}; } catch {}
+  if (!response.ok) {
+    throw new Error(data?.error?.message || `Google Drive não permitiu acessar as pastas (${response.status}).`);
+  }
+  const found = data.files?.[0];
+  if (found) {
+    if (found.name !== name) {
+      try { await renameDriveFile(accessToken, found.id, name); found.name = name; } catch (e) { console.error("rename folder:", e); }
+    }
+    return found;
+  }
+  const createResponse = await driveRequest(
+    accessToken,
+    "https://www.googleapis.com/drive/v3/files?fields=id,name,mimeType,parents",
+    {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        name,
+        mimeType: "application/vnd.google-apps.folder",
+        parents: [parentId],
+        appProperties: { [propKey]: propValue },
+      }),
+    },
+  );
+  const createRaw = await createResponse.text();
+  let created: any = {};
+  try { created = createRaw ? JSON.parse(createRaw) : {}; } catch {}
+  if (!createResponse.ok) {
+    throw new Error(created?.error?.message || `Google Drive não permitiu criar a pasta (${createResponse.status}).`);
+  }
+  return created;
+}
+
 async function getOrCreateFolder(
   accessToken: string,
   name: string,
@@ -331,13 +393,22 @@ Deno.serve(async (req) => {
     if (clientError) throw new Error(`Erro ao identificar cliente: ${clientError.message}`);
     if (!client) throw new Error("Cliente da evolução não encontrada.");
 
-    const clientFolderName = `${readableName(client.full_name, 90)} - ${client.id.slice(0, 6)}`;
-    const clientFolder = await getOrCreateFolder(accessToken, clientFolderName, clientsFolder.id);
+    // Estrutura: EsteticPro / Clientes / <Nome real da cliente> / Evolução dd/mm/aaaa
+    // Duas clientes com o mesmo nome ficam em pastas separadas (a segunda recebe um sufixo curto).
+    const baseClientName = readableName(client.full_name, 90);
+    const { data: sameName } = await supabaseAdmin
+      .from("clients")
+      .select("id")
+      .eq("user_id", user.id)
+      .neq("id", client.id)
+      .ilike("full_name", client.full_name);
+    const clientFolderName = (sameName && sameName.length) ? `${baseClientName} (${client.id.slice(0, 4)})` : baseClientName;
+    const clientFolder = await getOrCreateTaggedFolder(accessToken, clientFolderName, clientsFolder.id, "esteticpro_client_id", client.id);
 
     const [year, month, day] = String(evolution.evolution_date).split("-");
     const procedureName = readableName(evolution.procedure_name || "Sem procedimento", 65);
-    const evolutionFolderName = `Evolução - ${day}-${month}-${year} - ${procedureName} - ${evolution.id.slice(0, 6)}`;
-    const evolutionFolder = await getOrCreateFolder(accessToken, evolutionFolderName, clientFolder.id);
+    const evolutionFolderName = `Evolução ${day}/${month}/${year}`;
+    const evolutionFolder = await getOrCreateTaggedFolder(accessToken, evolutionFolderName, clientFolder.id, "esteticpro_evolution_date", `${year}-${month}-${day}`);
 
     const ext = file.type === "image/jpeg" ? "jpg" : file.type === "image/png" ? "png" : "webp";
     const base = file.name
@@ -345,8 +416,8 @@ Deno.serve(async (req) => {
       .replace(/[^a-zA-Z0-9À-ÿ_-]+/g, "-")
       .slice(0, 70) || "foto";
 
-    const dateLabel = `${day}-${month}-${year}`;
-    const fileName = `${photoType.toUpperCase()} - ${dateLabel} - ${procedureName} - ${Date.now()}${base ? ` - ${base}` : ""}.${ext}`;
+    const typeLabel = photoType === "before" || photoType === "antes" ? "Antes" : photoType === "after" || photoType === "depois" ? "Depois" : "Adicional";
+    const fileName = `${typeLabel} - ${procedureName} - ${evolution.id.slice(0, 6)} - ${Date.now()}.${ext}`;
 
     const driveFile = await uploadResumable(
       accessToken,

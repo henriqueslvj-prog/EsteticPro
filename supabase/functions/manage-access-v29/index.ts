@@ -4,7 +4,7 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
 const cors = {
-  "Access-Control-Allow-Origin": Deno.env.get("APP_ORIGIN") ?? "https://estetipro.vercel.app",
+  "Access-Control-Allow-Origin": Deno.env.get("APP_ORIGIN") ?? "https://esteticpro.vercel.app",
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
   "Access-Control-Allow-Methods": "POST, OPTIONS",
   "Vary": "Origin",
@@ -42,7 +42,7 @@ Deno.serve(async (req) => {
     if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) return json({ error: "Informe um e-mail válido." }, 400);
     if (email === String(user.email ?? "").toLowerCase()) return json({ error: "Esta é a conta administradora." }, 400);
     const { data: invited, error: inviteError } = await adminClient.auth.admin.inviteUserByEmail(email, {
-      redirectTo: Deno.env.get("APP_ORIGIN") ?? "https://estetipro.vercel.app",
+      redirectTo: Deno.env.get("APP_ORIGIN") ?? "https://esteticpro.vercel.app",
       data: { invited_by: user.id, access_type: "esteticpro_invite" },
     });
     if (inviteError) return json({ error: inviteError.message.includes("already") ? "Este e-mail já possui uma conta ou convite." : "Não foi possível enviar o convite. Confira o e-mail e tente novamente." }, 400);

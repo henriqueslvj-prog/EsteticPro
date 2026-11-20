@@ -40,6 +40,32 @@ async function deleteDriveFolder(accessToken: string, folderId: string) {
   const raw = await response.text(); let data: any = {}; try { data = raw ? JSON.parse(raw) : {}; } catch {}
   throw new Error(data?.error?.message || `Google Drive não permitiu excluir a pasta (${response.status}).`);
 }
+async function listFolders(accessToken: string, query: string) {
+  const url = new URL("https://www.googleapis.com/drive/v3/files");
+  url.searchParams.set("q", query);
+  url.searchParams.set("pageSize", "20");
+  url.searchParams.set("spaces", "drive");
+  url.searchParams.set("fields", "files(id,name,mimeType)");
+  const response = await fetch(url.toString(), { headers: { Authorization: `Bearer ${accessToken}` } });
+  const data = await response.json().catch(() => ({}));
+  if (!response.ok) throw new Error(data?.error?.message || `Google Drive não permitiu listar pastas (${response.status}).`);
+  return (data.files || []) as Array<{ id: string; name: string; mimeType: string }>;
+}
+async function findDayFolderForClient(accessToken: string, clientsFolderId: string, clientId: string, isoDate: string) {
+  const clientFolders = await listFolders(accessToken, `appProperties has { key='esteticpro_client_id' and value='${clientId}' } and mimeType = 'application/vnd.google-apps.folder' and trashed = false and '${clientsFolderId}' in parents`);
+  if (!clientFolders[0]) return null;
+  const days = await listFolders(accessToken, `appProperties has { key='esteticpro_evolution_date' and value='${isoDate}' } and mimeType = 'application/vnd.google-apps.folder' and trashed = false and '${clientFolders[0].id}' in parents`);
+  return days[0] || null;
+}
+async function isFolderEmpty(accessToken: string, folderId: string) {
+  const url = new URL("https://www.googleapis.com/drive/v3/files");
+  url.searchParams.set("q", `'${folderId}' in parents and trashed = false`);
+  url.searchParams.set("pageSize", "1");
+  url.searchParams.set("fields", "files(id)");
+  const response = await fetch(url.toString(), { headers: { Authorization: `Bearer ${accessToken}` } });
+  const data = await response.json().catch(() => ({}));
+  return response.ok && !(data.files || []).length;
+}
 function readable(value: string, max = 70) { return value.replace(/[^a-zA-Z0-9À-ÿ _-]/g, " ").replace(/\s+/g, " ").trim().slice(0, max) || "Sem procedimento"; }
 
 Deno.serve(async (req) => {
@@ -67,6 +93,11 @@ Deno.serve(async (req) => {
     if (connection?.root_folder_id) {
       const clientsFolder = await findFolder(accessToken, "Clientes", connection.root_folder_id);
       if (clientsFolder) {
+        // Estrutura nova: Clientes / <Nome> / Evolução dd/mm/aaaa (uma pasta por dia, compartilhada pelas evoluções do dia).
+        const dayFolder = await findDayFolderForClient(accessToken, clientsFolder.id, evolution.client_id, String(evolution.evolution_date));
+        if (dayFolder && await isFolderEmpty(accessToken, dayFolder.id)) await deleteDriveFolder(accessToken, dayFolder.id);
+
+        // Estruturas antigas (uma pasta por evolução): mantidas para limpar o que já existe.
         const clientReadableName = `${readable(client?.full_name || "Cliente", 100)} - ${evolution.client_id.slice(0, 6)}`;
         const clientFolder = await findFolder(accessToken, clientReadableName, clientsFolder.id) || await findFolder(accessToken, `Cliente-${evolution.client_id}`, clientsFolder.id);
         if (clientFolder) {

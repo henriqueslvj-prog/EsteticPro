@@ -2,7 +2,7 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
 const corsHeaders = {
-  "Access-Control-Allow-Origin": Deno.env.get("APP_ORIGIN") ?? "https://estetipro.vercel.app",
+  "Access-Control-Allow-Origin": Deno.env.get("APP_ORIGIN") ?? "https://esteticpro.vercel.app",
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
   "Access-Control-Allow-Methods": "POST, OPTIONS",
   "Vary": "Origin",
@@ -55,7 +55,7 @@ Deno.serve(async (req) => {
         .insert({ email, created_by: user.id, token_hash: tokenHex, status: "pending" })
         .select("id,email,status,expires_at,created_at").single();
       if (inviteError) throw inviteError;
-      const redirectTo = Deno.env.get("INVITE_REDIRECT_URL") ?? "https://estetipro.vercel.app";
+      const redirectTo = Deno.env.get("INVITE_REDIRECT_URL") ?? "https://esteticpro.vercel.app";
       const { error: mailError } = await admin.auth.admin.inviteUserByEmail(email, {
         redirectTo,
         data: { esteticpro_invite_id: invite.id },

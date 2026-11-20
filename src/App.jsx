@@ -1074,7 +1074,7 @@ function SettingsModule({ userId, profile, theme, onProfileOpen, onThemeChange }
     if (section === "whatsapp") return <section className="settings-panel"><SettingsPanelTitle icon={MessageSquareText} title="WhatsApp Business" subtitle="Cadastre o número profissional usado para atender suas clientes." /><div className="integration-card"><div className="integration-icon"><MessageCircle size={19}/></div><div><strong>WhatsApp Business pessoal</strong><span>O EsteticPro não precisa de API. Ao clicar em WhatsApp, ele abre a conversa da cliente com a mensagem pronta.</span></div><span className="settings-status">Sem API</span></div><div className="settings-grid"><Field label="Seu WhatsApp Business"><input value={business.whatsapp} onChange={e=>setBiz("whatsapp",e.target.value)} placeholder="(00) 00000-0000" inputMode="tel" /></Field></div><div className="settings-info"><strong>Variáveis disponíveis</strong><br/><code>{"{nome_cliente}"}</code>, <code>{"{procedimento}"}</code>, <code>{"{data}"}</code>, <code>{"{horario}"}</code> e <code>{"{localizacao}"}</code>. O EsteticPro preenche esses campos ao abrir a mensagem.</div><div className="settings-grid whatsapp-templates-grid">{[["confirmacao","Confirmação de agendamento"],["lembrete","Lembrete de atendimento"],["pos_atendimento","Pós-atendimento"],["retorno","Retorno da cliente"],["reagendamento","Reagendamento"],["localizacao","Enviar localização"]].map(([key,label])=><Field key={key} label={label} wide><textarea rows={4} value={business.whatsapp_message_templates?.[key] ?? DEFAULT_WHATSAPP_TEMPLATES[key]} onChange={e=>setBiz("whatsapp_message_templates",{...DEFAULT_WHATSAPP_TEMPLATES,...(business.whatsapp_message_templates||{}),[key]:e.target.value})} /></Field>)}</div><div className="settings-info"><strong>Como funciona</strong><br/>Cada profissional cadastra seu próprio número neste acesso. O sistema salva essa informação separadamente por conta e usa o WhatsApp disponível no celular ou computador para abrir a conversa. A mensagem é apenas preparada — o envio continua sendo confirmado pelo profissional no WhatsApp.</div></section>;
     if (section === "financeiro") return <section className="settings-panel"><SettingsPanelTitle icon={CircleDollarSign} title="Financeiro" subtitle="Preferências gerais da gestão financeira." /><div className="settings-grid"><Field label="Moeda"><select value={preferences.currency} onChange={e=>setPref("currency",e.target.value)}><option value="BRL">Real brasileiro (R$)</option><option value="USD">Dólar americano (US$)</option></select></Field></div><div className="settings-info">Categorias, formas de pagamento e rateios continuam sendo administrados nos próprios módulos para preservar o histórico financeiro.</div></section>;
     if (section === "estoque") return <section className="settings-panel"><SettingsPanelTitle icon={Package} title="Estoque" subtitle="Preferências do controle de produtos." /><div className="settings-toggles"><Toggle label="Consumo automático ativo por padrão" checked={preferences.auto_stock_consumption} onChange={v=>setPref("auto_stock_consumption",v)} hint="O atendimento poderá desativar o consumo individualmente quando necessário."/></div><div className="settings-info">Produtos, estoque mínimo, fornecedores e movimentações continuam no módulo Estoque.</div></section>;
-    if (section === "documentos") return <section className="settings-panel"><SettingsPanelTitle icon={FileText} title="Documentos e PDF" subtitle="Defina informações padrão para documentos do EsteticPro." /><div className="settings-grid"><Field label="Rodapé dos documentos" wide><textarea value={preferences.document_footer} onChange={e=>setPref("document_footer",e.target.value)} placeholder="Ex.: EsteticPro · atendimento personalizado"/></Field><Field label="Texto padrão de consentimento da anamnese" wide><textarea value={preferences.anamnesis_consent_text} onChange={e=>setPref("anamnesis_consent_text",e.target.value)}/></Field></div></section>;
+    if (section === "documentos") return <section className="settings-panel"><SettingsPanelTitle icon={FileText} title="Documentos e PDF" subtitle="Defina informações padrão para documentos do EsteticPro." /><AnamnesisTemplateCard userId={userId} /><div className="settings-grid"><Field label="Rodapé dos documentos" wide><textarea value={preferences.document_footer} onChange={e=>setPref("document_footer",e.target.value)} placeholder="Ex.: EsteticPro · atendimento personalizado"/></Field><Field label="Texto padrão de consentimento da anamnese" wide><textarea value={preferences.anamnesis_consent_text} onChange={e=>setPref("anamnesis_consent_text",e.target.value)}/></Field></div></section>;
     if (section === "aparencia") return <section className="settings-panel"><SettingsPanelTitle icon={Palette} title="Aparência" subtitle="Escolha o modo de exibição. Você também pode alternar a qualquer momento pelo botão no topo." /><div className="theme-options"><button className={preferences.theme !== "dark" ? "active" : ""} onClick={()=>setPref("theme","light")}><div className="theme-preview light"><span/></div><strong>Claro</strong><small>Creme e verde, para o dia</small></button><button className={preferences.theme === "dark" ? "active" : ""} onClick={()=>setPref("theme","dark")}><div className="theme-preview dark"><span/></div><strong>Escuro</strong><small>Verde profundo, mais confortável à noite</small></button></div><div className="settings-info">Nos dois modos a identidade EsteticPro é mantida: verde profundo, creme e detalhes dourados.</div></section>;
     return <section className="settings-panel"><SettingsPanelTitle icon={LockKeyhole} title="Segurança" subtitle="Acesso, conta e integrações protegidas." /><div className="security-list"><div><strong>Conta autenticada</strong><span>Seu acesso é protegido pelo Supabase Auth.</span></div><div><strong>Google Drive</strong><span>As fotos de evolução permanecem privadas na conta Google conectada.</span></div><div><strong>Dados sensíveis</strong><span>Credenciais e tokens de integrações não ficam expostos nesta tela.</span></div></div><div className="settings-info">Alteração de senha e exclusão definitiva da conta permanecem nas ferramentas de autenticação para evitar ações destrutivas acidentais.</div></section>;
   }
@@ -2233,7 +2233,7 @@ function anamnesisDisplayValue(value) {
   return String(value ?? "").trim() || "Não informado";
 }
 
-function ClientAnamnesis({ userId, client, onClose }) {
+function ClientAnamnesisStandard({ userId, client, onClose }) {
   const [form, setForm] = useState({ ...ANAMNESIS_DEFAULTS }); const [history, setHistory] = useState([]); const [loading, setLoading] = useState(true); const [saving, setSaving] = useState(false); const [downloading, setDownloading] = useState(false); const [error, setError] = useState(""); const [notice, setNotice] = useState(""); const [version, setVersion] = useState(0);
   async function load() { setLoading(true); setError(""); const { data, error: loadError } = await supabase.from("client_anamneses").select("*").eq("user_id", userId).eq("client_id", client.id).order("version", { ascending: false }); if (loadError) setError(loadError.message); const rows = data || []; setHistory(rows); if (rows[0]) { setForm({ ...ANAMNESIS_DEFAULTS, ...(rows[0].answers || {}), consent: Boolean(rows[0].consent), signed_name: rows[0].signed_name || "" }); setVersion(Number(rows[0].version || 1)); } else { setForm({ ...ANAMNESIS_DEFAULTS }); setVersion(0); } setLoading(false); }
   useEffect(() => { load(); }, [client.id, userId]);
@@ -2241,6 +2241,295 @@ function ClientAnamnesis({ userId, client, onClose }) {
   async function save() { if (!form.skin_complaint.trim() && !form.about_you_work.trim()) { setError("Preencha pelo menos o que mais incomoda na pele ou conte um pouco sobre você."); return; } if (!form.consent) { setError("É necessário registrar a ciência da cliente antes de salvar a anamnese."); return; } setSaving(true); setError(""); const nextVersion = (history[0]?.version || 0) + 1; const payload = { user_id: userId, client_id: client.id, version: nextVersion, answers: Object.fromEntries(Object.entries(form).filter(([key]) => !["consent", "signed_name"].includes(key))), consent: true, consent_text: "Declaro que as informações fornecidas nesta ficha são verdadeiras conforme meu conhecimento e que fui orientada sobre os cuidados relacionados ao atendimento.", signed_name: form.signed_name.trim() || client.full_name, signed_at: new Date().toISOString() }; const { error: saveError } = await supabase.from("client_anamneses").insert(payload); if (saveError) setError(saveError.message); else { setNotice(`Anamnese salva como versão ${nextVersion}.`); await load(); } setSaving(false); }
   async function downloadPdf() { setDownloading(true); setError(""); try { const { jsPDF } = await import("jspdf"); const doc = new jsPDF({ unit: "mm", format: "a4" }); const margin = 17; const width = 210 - margin * 2; let y = 18; const pageHeight = 297; const answers = form; const addPage = () => { doc.addPage(); y = 18; }; const ensure = (needed = 10) => { if (y + needed > pageHeight - 17) addPage(); }; const text = (value) => anamnesisDisplayValue(value); const line = (value, size = 9, bold = false) => { doc.setFont("helvetica", bold ? "bold" : "normal"); doc.setFontSize(size); doc.setTextColor(45, 57, 50); const lines = doc.splitTextToSize(text(value), width); ensure(lines.length * 4.5 + 5); doc.text(lines, margin, y); y += lines.length * 4.5 + 2; }; const labelLine = (label, value) => { ensure(10); doc.setFont("helvetica", "bold"); doc.setFontSize(8); doc.setTextColor(91, 105, 97); const labelLines = doc.splitTextToSize(label, width); doc.text(labelLines, margin, y); y += labelLines.length * 3.8 + 1; line(value, 8.5); }; const section = (title) => { ensure(13); doc.setFillColor(235, 242, 237); doc.roundedRect(margin, y - 5, width, 9, 2, 2, "F"); doc.setFont("helvetica", "bold"); doc.setFontSize(10); doc.setTextColor(43, 83, 57); doc.text(title, margin + 3, y + 1); y += 9; }; doc.setFont("helvetica", "bold"); doc.setFontSize(19); doc.setTextColor(36, 67, 47); doc.text("ESTETICPRO", margin, y); y += 7; doc.setFont("helvetica", "bold"); doc.setFontSize(14); doc.setTextColor(45, 57, 50); doc.text("FICHA DE ANAMNESE ESTÉTICA", margin, y); y += 6; doc.setFont("helvetica", "normal"); doc.setFontSize(8); doc.setTextColor(105, 119, 110); doc.text(`Cliente: ${client.full_name}   |   Data: ${formatDate(toInputDate(new Date()))}`, margin, y); y += 8; section("Identificação"); labelLine("Nome completo:", client.full_name); labelLine("Data de nascimento:", client.birth_date ? formatDate(client.birth_date) : "Não informado"); labelLine("Telefone:", client.phone || "Não informado"); labelLine("E-mail:", client.email || "Não informado"); labelLine("CPF:", client.cpf || "Não informado"); ANAMNESIS_SECTIONS.forEach((group) => { section(group.title); group.fields.forEach(([key, label]) => labelLine(label, answers[key])); if (group.notes) group.notes.forEach((note) => { ensure(8); doc.setFont("helvetica", "italic"); doc.setFontSize(7); doc.setTextColor(105, 119, 110); const lines = doc.splitTextToSize(note, width); doc.text(lines, margin, y); y += lines.length * 3.5 + 3; }); }); section("Declaração e ciência"); line("Declaro que as informações fornecidas nesta ficha são verdadeiras conforme meu conhecimento e que fui orientada sobre os cuidados relacionados ao atendimento.", 8.5); line(`Ciência registrada: ${answers.consent ? "Sim" : "Não"}`); line(`Nome informado para assinatura: ${answers.signed_name || client.full_name}`); y += 8; ensure(24); doc.setDrawColor(120, 130, 123); doc.line(margin, y, margin + 75, y); doc.line(margin + 100, y, margin + 175, y); y += 4; doc.setFontSize(7); doc.setTextColor(105, 119, 110); doc.text("Assinatura da cliente", margin, y); doc.text("Assinatura da profissional", margin + 100, y); y += 7; doc.text(`Documento gerado pelo EsteticPro · Versão ${version || "não salva"}`, margin, y); const pages = doc.internal.getNumberOfPages(); for (let i = 1; i <= pages; i++) { doc.setPage(i); doc.setFontSize(7); doc.setTextColor(130, 140, 134); doc.text(`Página ${i} de ${pages}`, 210 - margin, 289, { align: "right" }); } doc.save(`Anamnese-${slugify(client.full_name)}-${toInputDate(new Date())}.pdf`); setNotice("PDF gerado com sucesso."); } catch (pdfError) { setError(`Não foi possível gerar o PDF: ${pdfError.message}`); } setDownloading(false); }
   return <div className="modal-backdrop anamnesis-layer"><div className="modal-card anamnesis-modal"><div className="modal-header"><div><span>DOCUMENTO PROFISSIONAL</span><h2>Ficha de Anamnese</h2><p className="client-profile-subtitle">{client.full_name} · histórico digital por versões e PDF para impressão.</p></div><button onClick={onClose}><X size={20} /></button></div>{notice && <div className="module-notice success"><span>{notice}</span><button onClick={() => setNotice("")}><X size={16} /></button></div>}{error && <div className="form-error anamnesis-error">{error}</div>}{loading ? <div className="loading-panel"><span className="button-spinner dark" />Carregando anamnese...</div> : <><div className="anamnesis-document-head"><div><FileText size={20}/><div><strong>{client.full_name}</strong><span>Versão atual: {version || "Ainda não salva"}</span></div></div><div className="anamnesis-head-actions"><button className="secondary-button" onClick={downloadPdf} disabled={downloading}><Download size={15}/> {downloading ? "Gerando..." : "Baixar PDF"}</button><button className="primary-button" onClick={save} disabled={saving}><Save size={15}/> {saving ? "Salvando..." : "Salvar anamnese"}</button></div></div><div className="anamnesis-form-scroll">{ANAMNESIS_SECTIONS.map((group) => <section className="anamnesis-section" key={group.title}><div className="anamnesis-section-title"><ClipboardList size={16}/><div><h3>{group.title}</h3><span>Preencha somente o que for pertinente ao atendimento.</span></div></div><div className="anamnesis-fields">{group.fields.map(([key, label, type, options, help]) => type === "select" ? <label className="anamnesis-field" key={key}><span>{label}</span><select value={form[key]} onChange={(e) => setField(key, e.target.value)}>{options.map((option) => <option key={option}>{option}</option>)}</select>{help && <small className="anamnesis-help">{help}</small>}</label> : type === "textarea" ? <label className="anamnesis-field" key={key}><span>{label}</span><textarea rows="3" value={form[key]} onChange={(e) => setField(key, e.target.value)} placeholder="Registre as informações relevantes..." />{help && <small className="anamnesis-help">{help}</small>}</label> : <label className="anamnesis-field" key={key}><span>{label}</span><input value={form[key]} onChange={(e) => setField(key, e.target.value)} placeholder={help || "Registre a informação relevante..."} />{help && <small className="anamnesis-help">{help}</small>}</label>)}</div>{group.notes && <div className="anamnesis-reference-notes">{group.notes.map((note, index) => <p key={index}>{note}</p>)}</div>}</section>)}<section className="anamnesis-section"><div className="anamnesis-section-title"><ShieldCheck size={16}/><div><h3>Declaração e ciência</h3><span>Registro da ciência da cliente sobre as informações fornecidas.</span></div></div><label className="anamnesis-consent"><input type="checkbox" checked={Boolean(form.consent)} onChange={(e) => setField("consent", e.target.checked)}/><span>Declaro que as informações fornecidas nesta ficha são verdadeiras conforme meu conhecimento e que fui orientada sobre os cuidados relacionados ao atendimento.</span></label><label className="form-input anamnesis-sign-field"><span>Nome para assinatura digital</span><input value={form.signed_name} onChange={(e) => setField("signed_name", e.target.value)} placeholder={client.full_name}/></label><div className="anamnesis-signature-preview"><span>Assinatura da cliente</span><div>{form.signed_name || client.full_name}</div></div></section></div>{history.length > 0 && <section className="anamnesis-history"><div><strong>Histórico de versões</strong><span>Cada salvamento preserva a versão anterior.</span></div><div>{history.slice(0, 6).map((item) => <button key={item.id} onClick={() => { setForm({ ...ANAMNESIS_DEFAULTS, ...(item.answers || {}), consent: Boolean(item.consent), signed_name: item.signed_name || "" }); setVersion(Number(item.version || 1)); setNotice(`Versão ${item.version} carregada para visualização.`); }}><span>V{item.version}</span><small>{formatDate(item.created_at)}</small></button>)}</div></section>}</>}{!loading && <div className="modal-actions"><button className="secondary-button" onClick={onClose}>Fechar</button><button className="secondary-button" onClick={downloadPdf} disabled={downloading}><Download size={15}/> Baixar PDF</button><button className="primary-button" onClick={save} disabled={saving}><Save size={15}/> Salvar versão</button></div>}</div></div>;
+}
+
+/* ---------- Ficha de anamnese personalizada (PDF de referência) ---------- */
+const ANAMNESIS_BUCKET = "anamnesis-files";
+
+function prettyFieldName(name = "") {
+  const clean = String(name).replace(/[_\-.]+/g, " ").replace(/([a-zà-ÿ])([A-Z])/g, "$1 $2").replace(/\s+/g, " ").trim();
+  return (clean.charAt(0).toUpperCase() + clean.slice(1)) || "Campo";
+}
+
+// Lê o PDF e descobre se ele tem campos preenchíveis (formulário PDF/AcroForm).
+async function analyzeAnamnesisPdf(arrayBuffer) {
+  const { PDFDocument, PDFTextField, PDFCheckBox, PDFDropdown, PDFRadioGroup, PDFOptionList } = await import("pdf-lib");
+  const doc = await PDFDocument.load(arrayBuffer);
+  let fields = [];
+  try {
+    fields = doc.getForm().getFields().map((f) => {
+      const name = f.getName();
+      if (f instanceof PDFTextField) return { name, kind: "text", multiline: f.isMultiline() };
+      if (f instanceof PDFCheckBox) return { name, kind: "check" };
+      if (f instanceof PDFRadioGroup) return { name, kind: "radio", options: f.getOptions() };
+      if (f instanceof PDFDropdown) return { name, kind: "select", options: f.getOptions() };
+      if (f instanceof PDFOptionList) return { name, kind: "multi", options: f.getOptions() };
+      return null;
+    }).filter(Boolean);
+  } catch { fields = []; }
+  return { fields, pages: doc.getPageCount() };
+}
+
+async function fillAnamnesisPdf(arrayBuffer, fields, values) {
+  const { PDFDocument } = await import("pdf-lib");
+  const doc = await PDFDocument.load(arrayBuffer);
+  const form = doc.getForm();
+  for (const f of fields) {
+    const v = values[f.name];
+    try {
+      if (f.kind === "text") form.getTextField(f.name).setText(String(v ?? ""));
+      else if (f.kind === "check") { const c = form.getCheckBox(f.name); if (v) c.check(); else c.uncheck(); }
+      else if (f.kind === "radio" && v) form.getRadioGroup(f.name).select(v);
+      else if (f.kind === "select" && v) form.getDropdown(f.name).select(v);
+      else if (f.kind === "multi" && v && v.length) form.getOptionList(f.name).select(v);
+    } catch (error) { console.warn("Campo do PDF não preenchido:", f.name, error?.message); }
+  }
+  try { form.flatten(); } catch { /* mantém campos editáveis se não for possível achatar */ }
+  return doc.save();
+}
+
+function downloadBlob(bytes, filename, type = "application/pdf") {
+  const url = URL.createObjectURL(new Blob([bytes], { type }));
+  const a = document.createElement("a");
+  a.href = url; a.download = filename; document.body.appendChild(a); a.click(); a.remove();
+  window.setTimeout(() => URL.revokeObjectURL(url), 2000);
+}
+
+function AnamnesisTemplateCard({ userId }) {
+  const [tpl, setTpl] = useState(undefined);
+  const [busy, setBusy] = useState(false);
+  const [msg, setMsg] = useState(null);
+  const inputRef = useRef(null);
+
+  async function load() {
+    const { data, error } = await supabase.from("anamnesis_templates").select("*").eq("user_id", userId).maybeSingle();
+    if (error) { setTpl(null); setMsg({ type: "error", text: "Recurso ainda não ativado no banco de dados. Rode o arquivo supabase/v31_anamnese_pdf.sql no Supabase." }); return; }
+    setTpl(data || null);
+  }
+  useEffect(() => { load(); }, [userId]);
+
+  async function onPick(e) {
+    const file = e.target.files?.[0];
+    e.target.value = "";
+    if (!file) return;
+    setMsg(null);
+    if (file.type !== "application/pdf" && !file.name.toLowerCase().endsWith(".pdf")) return setMsg({ type: "error", text: "Envie um arquivo PDF." });
+    if (file.size > 10 * 1024 * 1024) return setMsg({ type: "error", text: "O PDF deve ter no máximo 10 MB." });
+    setBusy(true);
+    try {
+      const buffer = await file.arrayBuffer();
+      let info;
+      try { info = await analyzeAnamnesisPdf(buffer); } catch { throw new Error("Não foi possível ler este PDF. Verifique se ele não está protegido por senha ou corrompido."); }
+      const path = `${userId}/modelo-${Date.now()}.pdf`;
+      const { error: upError } = await supabase.storage.from(ANAMNESIS_BUCKET).upload(path, file, { contentType: "application/pdf", upsert: false });
+      if (upError) throw new Error(upError.message);
+      const { error: dbError } = await supabase.from("anamnesis_templates").upsert({ user_id: userId, storage_path: path, file_name: file.name, field_count: info.fields.length, active: true, updated_at: new Date().toISOString() }, { onConflict: "user_id" });
+      if (dbError) { await supabase.storage.from(ANAMNESIS_BUCKET).remove([path]); throw new Error(dbError.message); }
+      if (tpl?.storage_path) await supabase.storage.from(ANAMNESIS_BUCKET).remove([tpl.storage_path]);
+      setMsg({ type: "success", text: info.fields.length ? `PDF integrado: ${info.fields.length} campos preenchíveis detectados em ${info.pages} página(s).` : `PDF integrado (${info.pages} página(s)). Ele não tem campos preenchíveis, então será exibido na ficha e a versão preenchida pode ser anexada.` });
+      await load();
+    } catch (error) { setMsg({ type: "error", text: error.message || "Não foi possível enviar o PDF." }); }
+    setBusy(false);
+  }
+
+  async function toggleActive(active) {
+    setBusy(true);
+    const { error } = await supabase.from("anamnesis_templates").update({ active, updated_at: new Date().toISOString() }).eq("user_id", userId);
+    setMsg(error ? { type: "error", text: error.message } : { type: "success", text: active ? "Ficha personalizada ativada." : "Voltamos à ficha padrão do EsteticPro." });
+    await load();
+    setBusy(false);
+  }
+
+  async function preview() {
+    const { data } = await supabase.storage.from(ANAMNESIS_BUCKET).createSignedUrl(tpl.storage_path, 600);
+    if (data?.signedUrl) window.open(data.signedUrl, "_blank", "noopener,noreferrer");
+  }
+
+  async function remove() {
+    if (!window.confirm("Remover o PDF personalizado? A ficha padrão do EsteticPro volta a ser usada. Anamneses já salvas continuam no histórico das clientes.")) return;
+    setBusy(true);
+    await supabase.storage.from(ANAMNESIS_BUCKET).remove([tpl.storage_path]);
+    const { error } = await supabase.from("anamnesis_templates").delete().eq("user_id", userId);
+    setMsg(error ? { type: "error", text: error.message } : { type: "success", text: "PDF removido. A ficha padrão está ativa." });
+    await load();
+    setBusy(false);
+  }
+
+  const usingCustom = Boolean(tpl?.active);
+  return <div className="anam-tpl">
+    <div className="anam-tpl-head"><div className="anam-tpl-ico"><ClipboardList size={20} /></div><div><h3>Ficha de anamnese</h3><p>Use a ficha padrão do EsteticPro ou envie o seu PDF de referência para ele ocupar o lugar da ficha padrão.</p></div></div>
+    {msg && <div className={`module-notice ${msg.type}`}><span>{msg.text}</span><button type="button" onClick={() => setMsg(null)}><X size={16} /></button></div>}
+    <div className="anam-tpl-options">
+      <div className={`anam-tpl-opt ${!usingCustom ? "on" : ""}`}><strong>Ficha padrão EsteticPro</strong><span>Formulário digital completo, com histórico por versões e PDF.</span>{usingCustom && <button type="button" className="secondary-button" disabled={busy} onClick={() => toggleActive(false)}>Usar a padrão</button>}{!usingCustom && <em>Em uso</em>}</div>
+      <div className={`anam-tpl-opt ${usingCustom ? "on" : ""}`}>
+        <strong>Ficha personalizada (PDF)</strong>
+        {tpl ? <span><b>{tpl.file_name}</b><br />{tpl.field_count ? `${tpl.field_count} campos preenchíveis: a ficha vira um formulário digital e gera o PDF preenchido.` : "PDF sem campos preenchíveis: aparece na ficha e a versão preenchida é anexada à cliente."}</span> : <span>Envie um PDF (até 10 MB). Se ele for um formulário PDF com campos, o sistema cria o formulário digital automaticamente.</span>}
+        <div className="anam-tpl-actions">
+          <input ref={inputRef} type="file" accept="application/pdf,.pdf" hidden onChange={onPick} />
+          <button type="button" className="primary-button compact" disabled={busy} onClick={() => inputRef.current?.click()}>{busy ? <span className="button-spinner" /> : <><Upload size={16} /> {tpl ? "Substituir PDF" : "Enviar PDF"}</>}</button>
+          {tpl && <button type="button" className="secondary-button" onClick={preview}><Eye size={15} /> Visualizar</button>}
+          {tpl && !usingCustom && <button type="button" className="secondary-button" disabled={busy} onClick={() => toggleActive(true)}>Ativar</button>}
+          {tpl && <button type="button" className="secondary-button danger-outline" disabled={busy} onClick={remove}><Trash2 size={15} /> Remover</button>}
+        </div>
+        {usingCustom && <em>Em uso</em>}
+      </div>
+    </div>
+  </div>;
+}
+
+function CustomAnamnesisModal({ userId, client, template, onClose, onUseStandard }) {
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
+  const [notice, setNotice] = useState("");
+  const [bytes, setBytes] = useState(null);
+  const [pdfUrl, setPdfUrl] = useState("");
+  const [fields, setFields] = useState([]);
+  const [values, setValues] = useState({});
+  const [notes, setNotes] = useState("");
+  const [history, setHistory] = useState([]);
+  const [maxVersion, setMaxVersion] = useState(0);
+  const [consent, setConsent] = useState(false);
+  const [signedName, setSignedName] = useState("");
+  const [file, setFile] = useState(null);
+  const [saved, setSaved] = useState(null);
+  const [saving, setSaving] = useState(false);
+  const [working, setWorking] = useState(false);
+
+  async function loadHistory() {
+    const { data } = await supabase.from("client_anamneses").select("*").eq("user_id", userId).eq("client_id", client.id).order("version", { ascending: false });
+    const rows = data || [];
+    setMaxVersion(rows.reduce((m, r) => Math.max(m, Number(r.version || 0)), 0));
+    const custom = rows.filter((r) => r.answers && r.answers.__custom);
+    setHistory(custom);
+    return custom;
+  }
+  function applyRow(row) {
+    const c = row?.answers?.__custom || {};
+    setValues(c.values || {});
+    setNotes(c.notes || "");
+    setSaved(c.attachment_path ? { path: c.attachment_path, name: c.attachment_name } : null);
+    setSignedName(row?.signed_name || "");
+    setConsent(false);
+  }
+
+  useEffect(() => {
+    let mounted = true;
+    let url = "";
+    (async () => {
+      try {
+        const { data: blob, error: dlError } = await supabase.storage.from(ANAMNESIS_BUCKET).download(template.storage_path);
+        if (dlError || !blob) throw new Error(dlError?.message || "Não foi possível carregar o PDF da ficha.");
+        const buf = await blob.arrayBuffer();
+        const info = await analyzeAnamnesisPdf(buf);
+        url = URL.createObjectURL(new Blob([buf], { type: "application/pdf" }));
+        const custom = await loadHistory();
+        if (!mounted) return;
+        setBytes(buf); setFields(info.fields); setPdfUrl(url);
+        if (custom[0]) applyRow(custom[0]);
+      } catch (e) { if (mounted) setError(e.message || "Erro ao abrir a ficha."); }
+      if (mounted) setLoading(false);
+    })();
+    return () => { mounted = false; if (url) URL.revokeObjectURL(url); };
+  }, [template.storage_path, client.id]);
+
+  const setValue = (name, v) => { setValues((cur) => ({ ...cur, [name]: v })); setNotice(""); };
+  const hasFields = fields.length > 0;
+
+  async function save() {
+    setError("");
+    if (!consent) return setError("Registre a ciência da cliente antes de salvar a anamnese.");
+    if (!hasFields && !file && !saved && !notes.trim()) return setError("Anexe a ficha preenchida ou escreva anotações antes de salvar.");
+    if (hasFields && !Object.values(values).some((v) => (Array.isArray(v) ? v.length : String(v ?? "").trim() || v === true))) return setError("Preencha ao menos um campo da ficha.");
+    setSaving(true);
+    try {
+      let attachment = saved;
+      if (file) {
+        if (file.size > 10 * 1024 * 1024) throw new Error("O anexo deve ter no máximo 10 MB.");
+        const safe = file.name.replace(/[^a-zA-Z0-9._-]+/g, "-").slice(-60);
+        const path = `${userId}/clientes/${client.id}/${Date.now()}-${safe}`;
+        const { error: upError } = await supabase.storage.from(ANAMNESIS_BUCKET).upload(path, file, { contentType: file.type || "application/pdf" });
+        if (upError) throw new Error(upError.message);
+        attachment = { path, name: file.name };
+      }
+      const next = maxVersion + 1;
+      const payload = {
+        user_id: userId, client_id: client.id, version: next,
+        answers: { __custom: { template_name: template.file_name, values: hasFields ? values : {}, notes: notes.trim(), attachment_path: attachment?.path || null, attachment_name: attachment?.name || null } },
+        consent: true,
+        consent_text: "Declaro que as informações fornecidas nesta ficha são verdadeiras conforme meu conhecimento e que fui orientada sobre os cuidados relacionados ao atendimento.",
+        signed_name: signedName.trim() || client.full_name,
+        signed_at: new Date().toISOString(),
+      };
+      const { error: saveError } = await supabase.from("client_anamneses").insert(payload);
+      if (saveError) throw new Error(saveError.message);
+      setFile(null); setSaved(attachment); setConsent(false);
+      setNotice(`Anamnese salva como versão ${next}.`);
+      await loadHistory();
+    } catch (e) { setError(e.message || "Não foi possível salvar."); }
+    setSaving(false);
+  }
+
+  async function exportPdf() {
+    setWorking(true); setError("");
+    try {
+      const out = await fillAnamnesisPdf(bytes, fields, values);
+      downloadBlob(out, `Anamnese - ${client.full_name}.pdf`);
+    } catch (e) { setError(e.message || "Não foi possível gerar o PDF."); }
+    setWorking(false);
+  }
+
+  async function openAttachment(path) {
+    const { data } = await supabase.storage.from(ANAMNESIS_BUCKET).createSignedUrl(path, 600);
+    if (data?.signedUrl) window.open(data.signedUrl, "_blank", "noopener,noreferrer");
+  }
+
+  function renderField(f) {
+    const label = prettyFieldName(f.name);
+    if (f.kind === "check") return <label key={f.name} className="anam-check"><input type="checkbox" checked={Boolean(values[f.name])} onChange={(e) => setValue(f.name, e.target.checked)} /><span>{label}</span></label>;
+    if (f.kind === "radio") return <div key={f.name} className="form-field full"><span>{label}</span><div className="anam-radio">{f.options.map((o) => <label key={o}><input type="radio" name={f.name} checked={values[f.name] === o} onChange={() => setValue(f.name, o)} /><span>{o}</span></label>)}</div></div>;
+    if (f.kind === "select") return <label key={f.name} className="form-field"><span>{label}</span><select value={values[f.name] || ""} onChange={(e) => setValue(f.name, e.target.value)}><option value="">Selecione</option>{f.options.map((o) => <option key={o} value={o}>{o}</option>)}</select></label>;
+    if (f.kind === "multi") return <div key={f.name} className="form-field full"><span>{label}</span><div className="anam-radio">{f.options.map((o) => { const cur = values[f.name] || []; return <label key={o}><input type="checkbox" checked={cur.includes(o)} onChange={(e) => setValue(f.name, e.target.checked ? [...cur, o] : cur.filter((x) => x !== o))} /><span>{o}</span></label>; })}</div></div>;
+    if (f.multiline) return <label key={f.name} className="form-field full"><span>{label}</span><textarea rows="3" value={values[f.name] || ""} onChange={(e) => setValue(f.name, e.target.value)} /></label>;
+    return <label key={f.name} className="form-field"><span>{label}</span><input value={values[f.name] || ""} onChange={(e) => setValue(f.name, e.target.value)} /></label>;
+  }
+
+  return <div className="modal-backdrop anamnesis-layer"><div className="modal-card anamnesis-modal">
+    <div className="modal-header"><div><span>FICHA PERSONALIZADA</span><h2>Ficha de Anamnese</h2><p className="client-profile-subtitle">{client.full_name} · modelo: {template.file_name}</p></div><button type="button" onClick={onClose} aria-label="Fechar"><X size={20} /></button></div>
+    {notice && <div className="module-notice success"><span>{notice}</span><button type="button" onClick={() => setNotice("")}><X size={16} /></button></div>}
+    {error && <div className="form-error anamnesis-error">{error}</div>}
+    {loading ? <div className="loading-panel"><span className="button-spinner dark" />Carregando ficha...</div> : <div className="anam-body">
+      <div className="anam-bar"><span>{hasFields ? `${fields.length} campos do seu PDF` : "PDF exibido como está"}</span><div><button type="button" className="secondary-button" onClick={onUseStandard}>Usar ficha padrão desta vez</button>{hasFields && <button type="button" className="secondary-button" onClick={exportPdf} disabled={working}><Download size={15} /> {working ? "Gerando..." : "Baixar PDF preenchido"}</button>}</div></div>
+      {hasFields ? <div className="form-grid">{fields.map(renderField)}</div> : <>
+        <div className="anam-viewer"><iframe title="Ficha de anamnese" src={pdfUrl} /></div>
+        <div className="form-grid">
+          <label className="form-field full"><span>Ficha preenchida (PDF ou foto)</span><input type="file" accept="application/pdf,image/jpeg,image/png" onChange={(e) => setFile(e.target.files?.[0] || null)} /></label>
+          {saved && !file && <div className="form-field full"><span>Anexo atual</span><button type="button" className="secondary-button" onClick={() => openAttachment(saved.path)}><FileText size={15} /> {saved.name || "Abrir anexo"}</button></div>}
+          <label className="form-field full"><span>Anotações</span><textarea rows="3" value={notes} onChange={(e) => setNotes(e.target.value)} placeholder="Observações da ficha, alergias, pontos de atenção..." /></label>
+        </div>
+      </>}
+      <div className="anam-sign">
+        <label className="form-field"><span>Nome na assinatura</span><input value={signedName} onChange={(e) => setSignedName(e.target.value)} placeholder={client.full_name} /></label>
+        <label className="anam-check"><input type="checkbox" checked={consent} onChange={(e) => setConsent(e.target.checked)} /><span>A cliente confirma que as informações são verdadeiras e está ciente dos cuidados do atendimento.</span></label>
+      </div>
+      {history.length > 0 && <div className="anam-history"><strong>Versões salvas</strong>{history.map((r) => <div key={r.id}><span>Versão {r.version} · {formatDate(r.created_at)}</span><div>{r.answers.__custom.attachment_path && <button type="button" className="secondary-button" onClick={() => openAttachment(r.answers.__custom.attachment_path)}>Anexo</button>}<button type="button" className="secondary-button" onClick={() => applyRow(r)}>Abrir esta versão</button></div></div>)}</div>}
+      <div className="modal-actions"><button type="button" className="secondary-button" onClick={onClose}>Fechar</button><button type="button" className="primary-button" onClick={save} disabled={saving}>{saving ? <span className="button-spinner" /> : <><Save size={15} /> Salvar anamnese</>}</button></div>
+    </div>}
+  </div></div>;
+}
+
+
+function ClientAnamnesis({ userId, client, onClose }) {
+  const [template, setTemplate] = useState(undefined);
+  const [forceStandard, setForceStandard] = useState(false);
+  useEffect(() => {
+    let alive = true;
+    supabase.from("anamnesis_templates").select("*").eq("user_id", userId).eq("active", true).maybeSingle()
+      .then(({ data, error }) => { if (alive) setTemplate(error ? null : data || null); });
+    return () => { alive = false; };
+  }, [userId]);
+  if (template === undefined) return <div className="modal-backdrop anamnesis-layer"><div className="modal-card anamnesis-modal"><div className="loading-panel"><span className="button-spinner dark" />Abrindo ficha...</div></div></div>;
+  if (template && !forceStandard) return <CustomAnamnesisModal userId={userId} client={client} template={template} onClose={onClose} onUseStandard={() => setForceStandard(true)} />;
+  return <ClientAnamnesisStandard userId={userId} client={client} onClose={onClose} />;
 }
 
 function ClientPackageForm({ userId, client, onClose, onSaved }) {

@@ -1,7 +1,7 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
 const corsHeaders = {
-  "Access-Control-Allow-Origin": Deno.env.get("APP_ORIGIN") ?? "https://estetipro.vercel.app",
+  "Access-Control-Allow-Origin": Deno.env.get("APP_ORIGIN") ?? "https://esteticpro.vercel.app",
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
   "Access-Control-Allow-Methods": "POST, OPTIONS",
   "Vary": "Origin",
@@ -43,7 +43,7 @@ Deno.serve(async (req) => {
       });
       if (inviteRowError) return json({ error: "Não foi possível registrar o convite." }, 500);
 
-      const redirectTo = Deno.env.get("INVITE_REDIRECT_URL") ?? "https://estetipro.vercel.app/";
+      const redirectTo = Deno.env.get("INVITE_REDIRECT_URL") ?? "https://esteticpro.vercel.app/";
       const { error: sendError } = await adminClient.auth.admin.inviteUserByEmail(email, { redirectTo });
       if (sendError) {
         await adminClient.from("access_invites").update({ status: "revoked" }).eq("token_hash", tokenHash);
