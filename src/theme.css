@@ -697,3 +697,19 @@ html[data-theme="dark"] { --fld: rgb(214 220 216 / .05); --fld-hover: rgb(214 22
 .anam-history>div{display:flex;justify-content:space-between;align-items:center;gap:10px;padding:10px 12px;border:1px solid rgb(var(--fg-rgb) / .1);border-radius:10px}
 .anam-history>div>div{display:flex;gap:6px}
 @media(max-width:640px){.anam-tpl-options{grid-template-columns:1fr}.anam-viewer iframe{height:50vh}}
+
+/* ---------- Evolução recolhível ---------- */
+.evolution-card-head{align-items:center;gap:12px}
+.evolution-card-toggle{flex:1;min-width:0;display:flex;align-items:center;gap:14px;padding:4px;border:0;background:transparent;color:inherit;text-align:left;cursor:pointer;border-radius:10px;font:inherit}
+.evolution-card-toggle:hover .evolution-card-chevron{color:var(--accent-text)}
+.evolution-card-chevron{display:grid;place-items:center;width:30px;height:30px;flex:none;border-radius:8px;border:1px solid rgb(var(--fg-rgb) / .12);color:var(--tx-3);transition:transform .2s,color .2s}
+.evolution-card.is-open .evolution-card-chevron{transform:rotate(90deg);color:var(--accent-text)}
+.evolution-card-title{display:grid;gap:2px;min-width:0}
+.evolution-card-title h3{margin:0}
+.evolution-card-meta{margin-left:auto;display:inline-flex;align-items:center;gap:6px;font-size:12.5px;color:var(--tx-3);white-space:nowrap;padding:5px 10px;border-radius:99px;background:rgb(var(--fg-rgb) / .05)}
+.evolution-card.is-collapsed{padding-top:14px;padding-bottom:14px}
+.evolution-card-body{margin-top:14px}
+@media(max-width:640px){.evolution-card-meta{display:none}}
+.evolution-card-toggle,.evolution-card-toggle *{text-transform:none;letter-spacing:normal}
+.evolution-card-title>span{font-size:13px;color:var(--tx-3)}
+.evolution-card-meta{font-size:12.5px}

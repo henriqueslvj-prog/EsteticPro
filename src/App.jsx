@@ -3378,29 +3378,32 @@ function EvolutionModule({ userId, onNavigate }) {
 
 function EvolutionCard({ evolution, clientName, onEdit, onDelete, onPhotoDeleted, onPhotoTypeChanged }) {
   const photos = evolution.evolution_photos || [];
-  return <article className="evolution-card">
+  const [open, setOpen] = useState(false);
+  const bodyId = useId();
+  const hasNotes = evolution.notes || evolution.products_used || evolution.recommendations;
+  return <article className={`evolution-card ${open ? "is-open" : "is-collapsed"}`}>
     <div className="evolution-card-head">
-      <div>
-        <span>{formatDate(evolution.evolution_date)}</span>
-        <h3>{evolution.procedure_name || "Evolução estética"}</h3>
-        <small className="evolution-client-name">{clientName || "Cliente"}</small>
-      </div>
+      <button type="button" className="evolution-card-toggle" aria-expanded={open} aria-controls={bodyId} onClick={() => setOpen((v) => !v)}>
+        <span className="evolution-card-chevron"><ChevronRight size={18} /></span>
+        <span className="evolution-card-title">
+          <span>{formatDate(evolution.evolution_date)}</span>
+          <h3>{evolution.procedure_name || "Evolução estética"}</h3>
+          <small className="evolution-client-name">{clientName || "Cliente"}</small>
+        </span>
+        <span className="evolution-card-meta"><Camera size={14} /> {photos.length} {photos.length === 1 ? "foto" : "fotos"}</span>
+      </button>
       <div className="evolution-card-head-actions">
-        <div className="evolution-badge"><HeartPulse size={13} /> Evolução</div>
         <button type="button" className="icon-action" title="Editar evolução" onClick={() => onEdit(evolution)}><Edit3 size={15} /></button>
         <button type="button" className="icon-action danger-outline" title="Excluir evolução" onClick={() => onDelete(evolution)}><Trash2 size={15} /></button>
       </div>
     </div>
-    <PhotoGallery
-      photos={photos}
-      evolution={evolution}
-      onPhotoDeleted={onPhotoDeleted}
-      onPhotoTypeChanged={onPhotoTypeChanged}
-    />
-    {(evolution.notes || evolution.products_used || evolution.recommendations) && <div className="evolution-notes">
-      {evolution.notes && <div><strong>Observações</strong><p>{evolution.notes}</p></div>}
-      {evolution.products_used && <div><strong>Produtos utilizados</strong><p>{evolution.products_used}</p></div>}
-      {evolution.recommendations && <div><strong>Recomendações / retorno</strong><p>{evolution.recommendations}</p></div>}
+    {open && <div id={bodyId} className="evolution-card-body">
+      <PhotoGallery photos={photos} evolution={evolution} onPhotoDeleted={onPhotoDeleted} onPhotoTypeChanged={onPhotoTypeChanged} />
+      {hasNotes && <div className="evolution-notes">
+        {evolution.notes && <div><strong>Observações</strong><p>{evolution.notes}</p></div>}
+        {evolution.products_used && <div><strong>Produtos utilizados</strong><p>{evolution.products_used}</p></div>}
+        {evolution.recommendations && <div><strong>Recomendações / retorno</strong><p>{evolution.recommendations}</p></div>}
+      </div>}
     </div>}
   </article>;
 }

@@ -78,6 +78,12 @@ async function googleAccessToken(userId: string) {
   return data.access_token as string;
 }
 
+async function driveRequest(accessToken: string, url: string, init: RequestInit = {}) {
+  const headers = new Headers(init.headers || {});
+  headers.set("Authorization", `Bearer ${accessToken}`);
+  return fetch(url, { ...init, headers });
+}
+
 function q(value: string) {
   return value.replaceAll("\\", "\\\\").replaceAll("'", "\\'");
 }
